@@ -1,18 +1,36 @@
-FROM maven:3.9 AS build
+# --- STAGE 1: BUILD ---
+# Use a Maven image with a stable JDK version (e.g., 21 LTS)
+FROM maven:3.9.6-eclipse-temurin-21 AS build
 
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy the pom.xml file first to leverage Docker layer caching for dependencies
+COPY pom.xml .
+
+# Download dependencies (only if pom.xml has changed)
+RUN mvn dependency:go-offline -B
+
+# Copy the rest of the source code
+COPY src ./src
+
+# Build the application, skipping tests
+RUN mvn clean package -DskipTests
+
+# --- STAGE 2: RUNTIME ---
+# Use a smaller, lightweight JRE image for the final application
+FROM eclipse-temurin:21-jre-alpine
+
+# Set the time zone
 ENV TZ=UTC
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 ENV CATALINA_OPTS="-Duser.timezone=UTC"
 
-COPY ./pom.xml /demo/pom.xml
-WORKDIR /demo
-RUN mvn dependency:go-offline
-COPY ./src/ /demo/src
-WORKDIR /demo
-RUN mvn clean install -DskipTests
+# Set application environment variable for the JAR file path
+ARG JAR_FILE=/app/target/*.jar
+COPY --from=build ${JAR_FILE} app.jar
 
-FROM openjdk:25-jdk
-WORKDIR /demo
-COPY --from=build /demo/target/demo-0.0.1-SNAPSHOT.jar /demo/demo.jar
+# Expose the default application port (Docker Compose will map this)
 EXPOSE 8080
-CMD ["java", "-jar", "demo.jar"]
+
+# Define the command to run the application
+ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -1,0 +1,94 @@
+version: '3.9'
+
+services:
+  # --- 1. USER DATABASE ---
+  user-db:
+    image: postgres:15-alpine
+    restart: always
+    container_name: user_postgres_db
+    environment:
+      POSTGRES_DB: users_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d users_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # --- 2. DEVICE DATABASE ---
+  device-db:
+    image: postgres:15-alpine
+    restart: always
+    container_name: device_postgres_db
+    environment:
+      POSTGRES_DB: devices_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+    volumes:
+      - device_db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d devices_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # --- 3. USER SERVICE ---
+  user-service:
+    build:
+      context: ./Microservice-user/ds2025_spring_example-main/demo
+      dockerfile: ../Dockerfile
+    container_name: user_api_service
+    ports:
+      - "8080:8080"
+    depends_on:
+      user-db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/users_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: 8080
+    networks:
+      - app-network
+
+  # --- 4. DEVICE SERVICE ---
+  device-service:
+    build:
+      context: ./Microservice-device/ds2025_spring_example-main/demo
+      dockerfile: ../Dockerfile
+    container_name: device_api_service
+    ports:
+      - "8081:8080"
+    depends_on:
+      device-db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://device-db:5432/devices_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: 8080
+    networks:
+      - app-network
+
+# --- VOLUMES ---
+volumes:
+  user_db_data:
+  device_db_data:
+
+# --- NETWORK ---
+networks:
+  app-network:
+    driver: bridge
