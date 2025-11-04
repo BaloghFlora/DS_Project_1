@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:v3.1
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--experimental.plugins.jwtValidation.moduleName=github.com/legege/jwt-validation-middleware"
+      - "--experimental.plugins.jwtValidation.version=v0.2.1"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./plugins-storage:/plugins-storage 
+
+  auth-service:
+    build: ./demo
+    container_name: auth-service
+    # ports:
+    #   - "8081:8081"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=Host(`localhost`) && PathPrefix(`/auth`)"
+      - "traefik.http.services.auth.loadbalancer.server.port=8081"
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=debug
+      - logging.level.root=DEBUG
+      - logging.level.org.springframework.security=DEBUG
+      - logging.level.org.springframework.web=DEBUG
+
+    # ports:
+    #   - "8082:8082"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.user.rule=Host(`localhost`) && PathPrefix(`/users`)"
+      - "traefik.http.services.user.loadbalancer.server.port=8082"
+      - "traefik.http.routers.user.middlewares=jwt-val@docker"
+
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.secret=supersecret123456supersecret123456"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.signingMethod=HS256"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.authHeader=true"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.claims=role"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.requiredClaim.role=ROLE_USER,ROLE_ADMIN"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.payloadHeaders.X-User=sub"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.payloadHeaders.X-Role=role"
+
+
