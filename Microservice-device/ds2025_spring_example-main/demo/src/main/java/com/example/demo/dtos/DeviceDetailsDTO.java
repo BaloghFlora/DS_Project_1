@@ -1,8 +1,7 @@
 package com.example.demo.dtos;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
+import java.util.List;
 import java.util.UUID;
 
 public class DeviceDetailsDTO {
@@ -12,19 +11,19 @@ public class DeviceDetailsDTO {
     @NotBlank(message = "Device name is required")
     private String deviceName;
 
-    @NotNull(message = "Device user ID is required")
-    private UUID deviceUserId;
+    // No longer a single user ID — a device can have multiple users
+    private List<UUID> userIds;
 
     @NotBlank(message = "Device status is required")
     private String deviceStatus;
 
     public DeviceDetailsDTO() {}
 
-    public DeviceDetailsDTO(UUID id, String deviceName, UUID deviceUserId, String deviceStatus) {
+    public DeviceDetailsDTO(UUID id, String deviceName, String deviceStatus, List<UUID> userIds) {
         this.id = id;
         this.deviceName = deviceName;
-        this.deviceUserId = deviceUserId;
         this.deviceStatus = deviceStatus;
+        this.userIds = userIds;
     }
 
     public UUID getId() {
@@ -43,12 +42,12 @@ public class DeviceDetailsDTO {
         this.deviceName = deviceName;
     }
 
-    public UUID getDeviceUserId() {
-        return deviceUserId;
+    public List<UUID> getUserIds() {
+        return userIds;
     }
 
-    public void setDeviceUserId(UUID deviceUserId) {
-        this.deviceUserId = deviceUserId;
+    public void setUserIds(List<UUID> userIds) {
+        this.userIds = userIds;
     }
 
     public String getDeviceStatus() {

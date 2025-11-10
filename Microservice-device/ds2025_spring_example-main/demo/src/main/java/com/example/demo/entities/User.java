@@ -1,19 +1,17 @@
 package com.example.demo.entities;
-
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 import java.io.Serializable;
-import java.util.UUID;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
-@Table(name = "device")
-public class Device implements Serializable {
-
+@Table(name = "users")
+public class User implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
@@ -22,21 +20,17 @@ public class Device implements Serializable {
     @JdbcTypeCode(SqlTypes.UUID)
     private UUID id;
 
-    @Column(name = "device_name", nullable = false)
-    private String deviceName;
+    @Column(name = "username", nullable = false, unique = true)
+    private String username;
 
-    @Column(name = "device_status", nullable = false)
-    private String deviceStatus;
-
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private Set<DeviceUser> deviceUsers = new HashSet<>();
 
-    public Device() {
+    public User() {
     }
 
-    public Device(String deviceName, String deviceStatus) {
-        this.deviceName = deviceName;
-        this.deviceStatus = deviceStatus;
+    public User(String username) {
+        this.username = username;
     }
 
     public UUID getId() {
@@ -47,20 +41,12 @@ public class Device implements Serializable {
         this.id = id;
     }
 
-    public String getDeviceName() {
-        return deviceName;
+    public String getUsername() {
+        return username;
     }
 
-    public void setDeviceName(String deviceName) {
-        this.deviceName = deviceName;
-    }
-
-    public String getDeviceStatus() {
-        return deviceStatus;
-    }
-
-    public void setDeviceStatus(String deviceStatus) {
-        this.deviceStatus = deviceStatus;
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public Set<DeviceUser> getDeviceUsers() {

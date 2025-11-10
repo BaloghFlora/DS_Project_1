@@ -12,7 +12,6 @@ public class DeviceBuilder {
         return new DeviceDTO(
                 device.getId(),
                 device.getDeviceName(),
-                device.getDeviceUserId(),
                 device.getDeviceStatus()
         );
     }
@@ -21,15 +20,16 @@ public class DeviceBuilder {
         return new DeviceDetailsDTO(
                 device.getId(),
                 device.getDeviceName(),
-                device.getDeviceUserId(),
-                device.getDeviceStatus()
+                device.getDeviceStatus(),
+                device.getDeviceUsers().stream()
+                        .map(du -> du.getUser().getId())
+                        .toList()
         );
     }
 
     public static Device toEntity(DeviceDetailsDTO dto) {
         return new Device(
                 dto.getDeviceName(),
-                dto.getDeviceUserId(),
                 dto.getDeviceStatus()
         );
     }

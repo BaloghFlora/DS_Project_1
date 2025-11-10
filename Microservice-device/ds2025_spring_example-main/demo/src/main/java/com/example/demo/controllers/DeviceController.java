@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
+import com.example.demo.services.DeviceUserService;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
@@ -20,9 +20,13 @@ public class DeviceController {
 
     private final DeviceService deviceService;
 
-    public DeviceController(DeviceService deviceService) {
+    private final DeviceUserService deviceUserService;
+
+    public DeviceController(DeviceService deviceService, DeviceUserService deviceUserService) {
         this.deviceService = deviceService;
+        this.deviceUserService = deviceUserService;
     }
+
 
     @GetMapping
     public ResponseEntity<List<DeviceDTO>> getDevices() {
@@ -49,5 +53,13 @@ public class DeviceController {
     public ResponseEntity<Void> deleteDevice(@PathVariable UUID id) {
         deviceService.deleteDevice(id);
         return ResponseEntity.noContent().build(); // 204 No Content
+    }
+
+    @PostMapping("/{deviceId}/users/{userId}")
+    public ResponseEntity<Void> assignUserToDevice(
+            @PathVariable UUID deviceId,
+            @PathVariable UUID userId) {
+        deviceUserService.assignDeviceToUser(deviceId, userId);
+        return ResponseEntity.ok().build();
     }
 }

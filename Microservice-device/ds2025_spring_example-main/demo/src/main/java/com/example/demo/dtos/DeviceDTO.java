@@ -1,5 +1,6 @@
 package com.example.demo.dtos;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -7,17 +8,25 @@ public class DeviceDTO {
 
     private UUID id;
     private String deviceName;
-    private UUID deviceUserId;
     private String deviceStatus;
+
+    // Optional: include the IDs of assigned users
+    private List<UUID> userIds;
 
     public DeviceDTO() {
     }
 
-    public DeviceDTO(UUID id, String deviceName, UUID deviceUserId, String deviceStatus) {
+    public DeviceDTO(UUID id, String deviceName, String deviceStatus) {
         this.id = id;
         this.deviceName = deviceName;
-        this.deviceUserId = deviceUserId;
         this.deviceStatus = deviceStatus;
+    }
+
+    public DeviceDTO(UUID id, String deviceName, String deviceStatus, List<UUID> userIds) {
+        this.id = id;
+        this.deviceName = deviceName;
+        this.deviceStatus = deviceStatus;
+        this.userIds = userIds;
     }
 
     public UUID getId() {
@@ -36,14 +45,6 @@ public class DeviceDTO {
         this.deviceName = deviceName;
     }
 
-    public UUID getDeviceUserId() {
-        return deviceUserId;
-    }
-
-    public void setDeviceUserId(UUID deviceUserId) {
-        this.deviceUserId = deviceUserId;
-    }
-
     public String getDeviceStatus() {
         return deviceStatus;
     }
@@ -52,18 +53,24 @@ public class DeviceDTO {
         this.deviceStatus = deviceStatus;
     }
 
+    public List<UUID> getUserIds() {
+        return userIds;
+    }
+
+    public void setUserIds(List<UUID> userIds) {
+        this.userIds = userIds;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        DeviceDTO that = (DeviceDTO) o;
+        if (!(o instanceof DeviceDTO that)) return false;
         return Objects.equals(deviceName, that.deviceName) &&
-                Objects.equals(deviceUserId, that.deviceUserId) &&
-                Objects.equals(deviceStatus, that.deviceStatus);
+               Objects.equals(deviceStatus, that.deviceStatus);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(deviceName, deviceUserId, deviceStatus);
+        return Objects.hash(deviceName, deviceStatus);
     }
 }
