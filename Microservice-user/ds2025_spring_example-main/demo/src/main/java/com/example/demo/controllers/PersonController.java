@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.net.URI;
 import java.util.List;
@@ -28,6 +29,7 @@ public class PersonController {
      * Get all people.
      */
     @GetMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<List<PersonDTO>> getPeople() {
         return ResponseEntity.ok(personService.findPersons());
     }
@@ -50,6 +52,7 @@ public class PersonController {
      * Get person by ID.
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<PersonDetailsDTO> getPerson(@PathVariable UUID id) {
         return ResponseEntity.ok(personService.findPersonById(id));
     }
@@ -59,6 +62,7 @@ public class PersonController {
      * Useful for login or lookups.
      */
     @GetMapping("/email/{email}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<PersonDetailsDTO> getPersonByEmail(@PathVariable String email) {
         return ResponseEntity.ok(personService.findPersonByEmail(email));
     }

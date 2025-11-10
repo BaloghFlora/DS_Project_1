@@ -45,7 +45,55 @@ services:
       - app-network
       - proxy-network
 
-  # --- 3. USER SERVICE ---
+  # --- 3. CREDENTIAL DATABASE (NEW) ---
+  credential-db:
+    image: postgres:15-alpine
+    restart: always
+    container_name: credential_postgres_db
+    environment:
+      POSTGRES_DB: credential_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+    volumes:
+      - credential_db_data:/var/lib/postgresql/data
+    ports:
+      - "5431:5432" # Default PostgreSQL port
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d credential_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+      - proxy-network
+
+  # --- 4. AUTH SERVICE (MODIFIED) ---
+  auth-service:
+    build: ./Auth/demo
+    container_name: auth-service
+    ports:
+      - "8083:8081"
+    # --- ADDED depends_on and environment variables ---
+    depends_on:
+      credential-db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://credential-db:5432/credential_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: 8081
+    networks:
+      - app-network
+      - proxy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth-service.rule=Host(`localhost`) && PathPrefix(`/auth`)"
+      - "traefik.http.services.auth-service.loadbalancer.server.port=8081"
+      - "traefik.docker.network=proxy-network"
+      # This service is not protected by JWT, as it creates the tokens
+      
+  # --- 5. USER SERVICE (Unchanged from your file) ---
   user-service:
     build:
       context: ./Microservice-user/ds2025_spring_example-main/demo
@@ -67,11 +115,13 @@ services:
       - proxy-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.user-service.rule=Host(`localhost`) && PathPrefix(`/api/users`)"
+      - "traefik.http.routers.user-service.rule=Host(`localhost`) && PathPrefix(`/people`)"
       - "traefik.http.services.user-service.loadbalancer.server.port=8080"
       - "traefik.docker.network=proxy-network"
+      - "traefik.http.routers.user-service.middlewares=jwt-val@docker"
+      # Note: The middleware *definition* is now on the reverse-proxy service
 
-  # --- 4. DEVICE SERVICE ---
+  # --- 6. DEVICE SERVICE (Unchanged from your file) ---
   device-service:
     build:
       context: ./Microservice-device/ds2025_spring_example-main/demo
@@ -93,25 +143,28 @@ services:
       - proxy-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.device-service.rule=Host(`localhost`) && PathPrefix(`/api/devices`)"
+      - "traefik.http.routers.device-service.rule=Host(`localhost`) && (PathPrefix(`/devices`) || PathPrefix(`/users`) || PathPrefix(`/device-users`))"
       - "traefik.http.services.device-service.loadbalancer.server.port=8080"
       - "traefik.docker.network=proxy-network"
+      - "traefik.http.routers.device-service.middlewares=jwt-val@docker"
 
-  # --- 5. TRAEFIK REVERSE PROXY ---
+  # --- 7. TRAEFIK REVERSE PROXY (MODIFIED) ---
   reverse-proxy:
     image: traefik:v2.10
     container_name: traefik
     restart: always
     command:
-      - "--configFile=/etc/Microservice-reverse-proxy/traefik.yml"
+      # --- SIMPLIFIED COMMANDS ---
+      # All static config is now in the .yml file
+      - "--configFile=/etc/traefik/traefik.yml"
     ports:
-      - "80:80"      # HTTP entry point
-      - "8082:8080"  # Traefik dashboard (http://localhost:8082)
+      - "80:80"
+      - "8082:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./Microservice-reverse-proxy/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./Microservice-reverse-proxy/dynamic:/etc/traefik/dynamic:ro
       - traefik_logs:/var/log/traefik
+      - ./plugins-storage:/plugins-storage # This is correct, keep it
     networks:
       - proxy-network
     labels:
@@ -119,12 +172,23 @@ services:
       - "traefik.http.routers.api.rule=Host(`localhost`)"
       - "traefik.http.routers.api.service=api@internal"
 
+      # --- This is the MIDDLEWARE DEFINITION. This is correct. ---
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.secret=supersecret123456supersecret123456"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.signingMethod=HS256"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.authHeader=true"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.claims=role"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.requiredClaim.role=ROLE_USER,ROLE_ADMIN"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.payloadHeaders.X-User=sub"
+      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.payloadHeaders.X-Role=role"
+
 # --- VOLUMES ---
 volumes:
   user_db_data:
   device_db_data:
+  credential_db_data: # <-- ADDED
   traefik_logs:
-
+  plugins-storage:    # <-- ADDED
+  
 # --- NETWORKS ---
 networks:
   app-network:

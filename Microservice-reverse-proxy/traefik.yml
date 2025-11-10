@@ -2,32 +2,26 @@
 log:
   level: INFO
 
+# Access log configuration
 accessLog: 
-  filePath: "/var/log/traefik/access.log" # Path to access log file
+  filePath: "/var/log/traefik/access.log"
   format: common
 
 # Enable the Traefik dashboard and API
+# The dashboard will be available on port 8080 (as defined in docker-compose.yml)
 api:
   dashboard: true
-  insecure: true # Allows access to the dashboard without authentication (not recommended for production)
+  insecure: true
 
-# Define entry points for HTTP and HTTPS
+# Define entry points
 entryPoints:
   web:
     address: ":80"
-  
-  # Enables HTTPS 
-  # websecure:
-    # address: ":443"
 
-
-# Configure providers (where Traefik gets routing info)
+# Configure providers
 providers:
-  # Docker provider - auto-discover containers with labels
-  docker:
-    exposedByDefault: false # Only expose containers with traefik.enable=true
-    network: proxy-network # Which Docker network to use
-  # File provider - read routing rules from files
+  # File provider - read all routing rules from /etc/traefik/dynamic
+  # This is the only provider needed since path.yml defines all routes.
   file:
     directory: "/etc/traefik/dynamic"
-    watch: true # Auto-reload when files change
+    watch: true  # Auto-reload when files change
