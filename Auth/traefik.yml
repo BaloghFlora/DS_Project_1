@@ -1,13 +1,18 @@
+# Add this api section
+api:
+  dashboard: true
+  insecure: true # Allows dashboard access on http://localhost:8082
+
 entryPoints:
   web:
     address: ":80"
 
 providers:
-  docker: {}
+  docker:
+    exposedByDefault: false # This is good practice
 
 experimental:
   plugins:
     jwt-validation-middleware:
       moduleName: "github.com/legege/jwt-validation-middleware"
       version: "v0.2.1"
-

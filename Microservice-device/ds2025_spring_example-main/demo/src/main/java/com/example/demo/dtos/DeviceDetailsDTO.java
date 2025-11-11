@@ -12,7 +12,7 @@ public class DeviceDetailsDTO {
     private String deviceName;
 
     // No longer a single user ID — a device can have multiple users
-    private List<UUID> userIds;
+    private List<UUID> userIds = new java.util.ArrayList<>();
 
     @NotBlank(message = "Device status is required")
     private String deviceStatus;

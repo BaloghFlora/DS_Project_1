@@ -5,6 +5,7 @@ import com.example.demo.dtos.DeviceDetailsDTO;
 import com.example.demo.services.DeviceService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -61,5 +62,27 @@ public class DeviceController {
             @PathVariable UUID userId) {
         deviceUserService.assignDeviceToUser(deviceId, userId);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Get all devices for the currently authenticated user (Client role).
+     */
+    @GetMapping("/my-devices")
+    @PreAuthorize("hasRole('ROLE_USER')") // Redundant check, but good practice
+    public ResponseEntity<List<DeviceDTO>> getMyDevices() {
+        return ResponseEntity.ok(deviceService.findDevicesByUsername());
+    }
+
+    /**
+     * Update an existing device (Admin role).
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    public ResponseEntity<DeviceDetailsDTO> updateDevice(
+            @PathVariable UUID id, 
+            @Valid @RequestBody DeviceDetailsDTO deviceDetails) {
+        
+        DeviceDetailsDTO updatedDevice = deviceService.update(id, deviceDetails);
+        return ResponseEntity.ok(updatedDevice);
     }
 }

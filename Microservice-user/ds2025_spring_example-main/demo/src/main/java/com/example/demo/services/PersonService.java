@@ -69,4 +69,36 @@ public class PersonService {
         }
         return PersonBuilder.toPersonDetailsDTO(personOptional.get());
     }
+
+    /**
+     * Update an existing person.
+     */
+    public PersonDetailsDTO update(UUID id, PersonDetailsDTO personDTO) {
+        Optional<Person> personOptional = personRepository.findById(id);
+        if (personOptional.isEmpty()) {
+            LOGGER.error("Person with id {} was not found in db", id);
+            throw new ResourceNotFoundException(Person.class.getSimpleName() + " with id: " + id);
+        }
+        
+        Person person = personOptional.get();
+        person.setFullName(personDTO.getFullName());
+        person.setEmail(personDTO.getEmail());
+        person.setPassword(personDTO.getPassword()); // Consider logic for password encoding here
+        
+        person = personRepository.save(person);
+        LOGGER.debug("Person with id {} was updated in db", person.getId());
+        return PersonBuilder.toPersonDetailsDTO(person);
+    }
+
+    /**
+     * Delete a person by ID.
+     */
+    public void delete(UUID id) {
+        if (!personRepository.existsById(id)) {
+            LOGGER.error("Attempted to delete non-existent person with id {}", id);
+            throw new ResourceNotFoundException(Person.class.getSimpleName() + " with id: " + id);
+        }
+        personRepository.deleteById(id);
+        LOGGER.debug("Person with id {} was deleted from db", id);
+    }
 }

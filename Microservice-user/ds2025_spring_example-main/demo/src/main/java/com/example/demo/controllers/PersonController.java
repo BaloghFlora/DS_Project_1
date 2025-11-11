@@ -66,4 +66,24 @@ public class PersonController {
     public ResponseEntity<PersonDetailsDTO> getPersonByEmail(@PathVariable String email) {
         return ResponseEntity.ok(personService.findPersonByEmail(email));
     }
+
+    /**
+     * Update an existing person.
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<PersonDetailsDTO> updatePerson(@PathVariable UUID id, @Valid @RequestBody PersonDetailsDTO personDetails) {
+        PersonDetailsDTO updatedPerson = personService.update(id, personDetails);
+        return ResponseEntity.ok(updatedPerson);
+    }
+
+    /**
+     * Delete a person by ID.
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<Void> deletePerson(@PathVariable UUID id) {
+        personService.delete(id);
+        return ResponseEntity.noContent().build(); // 204 No Content
+    }
 }

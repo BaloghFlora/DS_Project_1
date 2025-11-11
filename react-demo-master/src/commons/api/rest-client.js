@@ -1,47 +1,43 @@
-// src/commons/api/rest-client.js
-
 function performRequest(request, callback) {
+    // Get the token from localStorage
+    const user = localStorage.getItem('user');
+    let token = null;
     
-    // Get user from localStorage
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-        const user = JSON.parse(storedUser);
-        if (user && user.token) {
-            // Add Authorization header
-            request.headers.set('Authorization', `Bearer ${user.token}`);
+    if (user) {
+        try {
+            const userData = JSON.parse(user);
+            token = userData.token;
+        } catch (e) {
+            console.error('Error parsing user data:', e);
         }
+    }
+
+    // Add Authorization header if token exists
+    if (token && !request.headers.has('Authorization')) {
+        request.headers.set('Authorization', `Bearer ${token}`);
     }
 
     fetch(request)
         .then(
-            function(response) {
-                if (response.status === 401) {
-                    // Auto-logout on 401
-                    localStorage.removeItem('user');
-                    window.location.href = '/login'; 
-                    return;
-                }
-                
+            function (response) {
                 if (response.ok) {
-                    // Handle 204 No Content
-                    if (response.status === 204) {
-                        return Promise.resolve(null);
-                    }
-                    return response.json();
-                }
-                else {
-                    return response.json().then(err => Promise.reject(err));
+                    response.json().then(json => callback(json, response.status, null));
+                } else if (response.status === 401) {
+                    // Unauthorized - clear token and redirect to login
+                    localStorage.removeItem('user');
+                    window.location.href = '/login';
+                    callback(null, response.status, 'Unauthorized');
+                } else {
+                    response.json().then(err => callback(null, response.status, err));
                 }
             })
-        .then(json => {
-            callback(json, request.status, null);
-        })
         .catch(function (err) {
-            //catch any other unexpected error
-            callback(null, 1, err)
+            callback(null, 0, err);
         });
 }
 
-module.exports = {
+const RestApiClient = {
     performRequest
 };
+
+export default RestApiClient;

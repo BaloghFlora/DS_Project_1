@@ -1,27 +1,32 @@
-# Logging configuration
-log:
-  level: INFO
-
-# Access log configuration
-accessLog: 
-  filePath: "/var/log/traefik/access.log"
-  format: common
-
-# Enable the Traefik dashboard and API
-# The dashboard will be available on port 8080 (as defined in docker-compose.yml)
+# 1. Enable the Traefik dashboard and API
 api:
   dashboard: true
   insecure: true
 
-# Define entry points
+# 2. Logging
+log:
+  level: INFO
+accessLog: 
+  filePath: "/var/log/traefik/access.log"
+  format: common
+
+# 3. Define the entry point
 entryPoints:
   web:
     address: ":80"
 
-# Configure providers
+# 4. Configure providers: BOTH Docker (for frontend) and File (for APIs)
 providers:
-  # File provider - read all routing rules from /etc/traefik/dynamic
-  # This is the only provider needed since path.yml defines all routes.
+  docker:
+    exposedByDefault: false
+    network: proxy-network
   file:
-    directory: "/etc/traefik/dynamic"
-    watch: true  # Auto-reload when files change
+    directory: "/etc/traefik/dynamic" # Points to path.yml
+    watch: true
+
+# 5. Load the JWT plugin
+experimental:
+  plugins:
+    jwt-validation-middleware:
+      moduleName: "github.com/legege/jwt-validation-middleware"
+      version: "v0.2.1"

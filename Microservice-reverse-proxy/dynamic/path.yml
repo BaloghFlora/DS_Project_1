@@ -1,39 +1,75 @@
 http:
-  # Define URL routing rules, middlewares, and services
   routers:
-    nginx-frontend:
-      rule: "Host(`localhost`)" # Match requests to localhost without /api prefix
+    # --- Router for AUTH service (NO auth middleware) ---
+    router-auth:
+      rule: "Host(`localhost`) && PathPrefix(`/auth`)"
       entryPoints:
-        - web # Listen on the web (HTTP) entry point
-      service: nginx # Forward to the nginx service
+        - web
+      service: service-auth
+      priority: 10 # High priority
 
-    backend-api:
-      rule: "Host(`localhost`) && PathPrefix(`/api`)" # Match requests to localhost with /api prefix
+    # --- Router for USER service (people) ---
+    router-people:
+      rule: "Host(`localhost`) && PathPrefix(`/api/people`)"
       entryPoints:
-        - web # Listen on the web (HTTP) entry point
+        - web
       middlewares:
-        - auth-basic # Apply basic auth middleware
-        - strip-api-prefix # Remove /api prefix before forwarding
-      service: api-service
+        - jwt-auth # Apply JWT auth
+        - strip-api  # Strip /api
+      service: service-people
+      priority: 10 # High priority
+
+    # --- Router for DEVICE service ---
+    router-devices:
+      rule: "Host(`localhost`) && (PathPrefix(`/api/devices`) || PathPrefix(`/api/device-users`))"
+      entryPoints:
+        - web
+      middlewares:
+        - jwt-auth # Apply JWT auth
+        - strip-api  # Strip /api
+      service: service-devices
+      priority: 10 # High priority
 
   middlewares:
-    strip-api-prefix: # Middleware to remove /api prefix
+    # --- Middleware to strip the /api prefix ---
+    strip-api:
       stripPrefix: 
         prefixes:
           - "/api"
 
-    auth-basic: # Middleware for basic authentication
-      basicAuth:
-        users:
-          - "user:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/" # password = "test"
+    # --- Middleware definition for JWT Authentication ---
+    # This matches the labels we removed from docker-compose.yml
+    jwt-auth:
+      plugin:
+        jwt-validation-middleware:
+          secret: "supersecret123456supersecret123456"
+          signingMethod: "HS256"
+          authHeader: true
+          claims: "role"
+          requiredClaim:
+            role: ["ROLE_USER", "ROLE_ADMIN"]
+          payloadHeaders:
+            X-User: "sub"
+            X-Role: "role"
 
   services:
-    nginx: 
+    # --- Service for AUTH ---
+    # Points to http://auth-service:8081
+    service-auth:
       loadBalancer:
         servers:
-          - url: "http://nginx:80" # Container name solved by Docker DNS
+          - url: "http://auth-service:8081" 
 
-    api-service:
+    # --- Service for USERS (PEOPLE) ---
+    # Points to http://user_api_service:8080
+    service-people:
       loadBalancer:
         servers:
-          - url: "http://backend:5000" # Container name solved by Docker DNS
+          - url: "http://user_api_service:8080" 
+
+    # --- Service for DEVICES ---
+    # Points to http://device_api_service:8080
+    service-devices:
+      loadBalancer:
+        servers:
+          - url: "http://device_api_service:8080"

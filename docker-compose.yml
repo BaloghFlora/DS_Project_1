@@ -21,7 +21,6 @@ services:
       retries: 5
     networks:
       - app-network
-      - proxy-network
 
   # --- 2. DEVICE DATABASE ---
   device-db:
@@ -43,9 +42,8 @@ services:
       retries: 5
     networks:
       - app-network
-      - proxy-network
 
-  # --- 3. CREDENTIAL DATABASE (NEW) ---
+  # --- 3. CREDENTIAL DATABASE ---
   credential-db:
     image: postgres:15-alpine
     restart: always
@@ -57,7 +55,7 @@ services:
     volumes:
       - credential_db_data:/var/lib/postgresql/data
     ports:
-      - "5431:5432" # Default PostgreSQL port
+      - "5431:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d credential_db"]
       interval: 5s
@@ -65,15 +63,11 @@ services:
       retries: 5
     networks:
       - app-network
-      - proxy-network
 
-  # --- 4. AUTH SERVICE (MODIFIED) ---
+  # --- 4. AUTH SERVICE ---
   auth-service:
     build: ./Auth/demo
     container_name: auth-service
-    ports:
-      - "8083:8081"
-    # --- ADDED depends_on and environment variables ---
     depends_on:
       credential-db:
         condition: service_healthy
@@ -82,25 +76,22 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: admin
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SERVER_PORT: 8081
+
     networks:
       - app-network
-      - proxy-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.auth-service.rule=Host(`localhost`) && PathPrefix(`/auth`)"
       - "traefik.http.services.auth-service.loadbalancer.server.port=8081"
       - "traefik.docker.network=proxy-network"
-      # This service is not protected by JWT, as it creates the tokens
+      - "traefik.http.routers.auth-service.entrypoints=web"
       
-  # --- 5. USER SERVICE (Unchanged from your file) ---
+  # --- 5. USER SERVICE ---
   user-service:
     build:
       context: ./Microservice-user/ds2025_spring_example-main/demo
       dockerfile: ../Dockerfile
     container_name: user_api_service
-    ports:
-      - "8080:8080"
     depends_on:
       user-db:
         condition: service_healthy
@@ -112,23 +103,20 @@ services:
       SERVER_PORT: 8080
     networks:
       - app-network
-      - proxy-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.user-service.rule=Host(`localhost`) && PathPrefix(`/people`)"
       - "traefik.http.services.user-service.loadbalancer.server.port=8080"
       - "traefik.docker.network=proxy-network"
+      - "traefik.http.routers.user-service.entrypoints=web"
       - "traefik.http.routers.user-service.middlewares=jwt-val@docker"
-      # Note: The middleware *definition* is now on the reverse-proxy service
 
-  # --- 6. DEVICE SERVICE (Unchanged from your file) ---
+  # --- 6. DEVICE SERVICE ---
   device-service:
     build:
       context: ./Microservice-device/ds2025_spring_example-main/demo
       dockerfile: ../Dockerfile
     container_name: device_api_service
-    ports:
-      - "8081:8080"
     depends_on:
       device-db:
         condition: service_healthy
@@ -140,58 +128,73 @@ services:
       SERVER_PORT: 8080
     networks:
       - app-network
-      - proxy-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.device-service.rule=Host(`localhost`) && (PathPrefix(`/devices`) || PathPrefix(`/users`) || PathPrefix(`/device-users`))"
       - "traefik.http.services.device-service.loadbalancer.server.port=8080"
       - "traefik.docker.network=proxy-network"
+      - "traefik.http.routers.device-service.entrypoints=web"
       - "traefik.http.routers.device-service.middlewares=jwt-val@docker"
 
-  # --- 7. TRAEFIK REVERSE PROXY (MODIFIED) ---
+  # --- 7. TRAEFIK REVERSE PROXY ---
   reverse-proxy:
-    image: traefik:v2.10
+    image: traefik:v3.1
     container_name: traefik
     restart: always
     command:
-      # --- SIMPLIFIED COMMANDS ---
-      # All static config is now in the .yml file
-      - "--configFile=/etc/traefik/traefik.yml"
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--experimental.plugins.jwtValidation.moduleName=github.com/legege/jwt-validation-middleware"
+      - "--experimental.plugins.jwtValidation.version=v0.2.1"
     ports:
       - "80:80"
       - "8082:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./Microservice-reverse-proxy/traefik.yml:/etc/traefik/traefik.yml:ro
       - traefik_logs:/var/log/traefik
-      - ./plugins-storage:/plugins-storage # This is correct, keep it
+      - ./plugins-storage:/plugins-storage
     networks:
-      - proxy-network
+      - app-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`localhost`)"
-      - "traefik.http.routers.api.service=api@internal"
+      # JWT Middleware Definition
+      - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.secret=supersecret123456supersecret123456"
+      - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.signingMethod=HS256"
+      - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.authHeader=true"
+      - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.claims=role"
+      - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.requiredClaim.role=ROLE_USER,ROLE_ADMIN"
+      - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.payloadHeaders.X-User=sub"
+      - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.payloadHeaders.X-Role=role"
 
-      # --- This is the MIDDLEWARE DEFINITION. This is correct. ---
-      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.secret=supersecret123456supersecret123456"
-      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.signingMethod=HS256"
-      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.authHeader=true"
-      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.claims=role"
-      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.requiredClaim.role=ROLE_USER,ROLE_ADMIN"
-      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.payloadHeaders.X-User=sub"
-      - "traefik.http.middlewares.jwt-val.plugin.jwt-validation-middleware.payloadHeaders.X-Role=role"
+# --- 8. FRONTEND SERVICE (ADDED) ---
+  frontend:
+    build:
+      context: ./react-demo-master
+      dockerfile: Dockerfile
+    container_name: react-frontend-service
+    networks:
+      - app-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy-network"
+      # --- Router for the frontend (React App) ---
+      - "traefik.http.routers.frontend-service.rule=Host(`localhost`)"
+      - "traefik.http.routers.frontend-service.entrypoints=web"
+      - "traefik.http.routers.frontend-service.priority=1" # <-- LOWEST priority
+      # --- Service definition for the frontend ---
+      - "traefik.http.services.frontend-service.loadbalancer.server.port=80" # Nginx serves on port 80
 
-# --- VOLUMES ---
 volumes:
   user_db_data:
   device_db_data:
-  credential_db_data: # <-- ADDED
+  credential_db_data:
   traefik_logs:
-  plugins-storage:    # <-- ADDED
+  plugins-storage:
   
 # --- NETWORKS ---
 networks:
   app-network:
-    driver: bridge
-  proxy-network:
     driver: bridge
