@@ -5,7 +5,7 @@ import { Button } from "reactstrap"; // Import Button
 
 // --- MODIFIED: Add columns as a prop ---
 const UserTable = (props) => {
-    
+
     // --- MODIFIED: Define columns here, including Actions ---
     const columns = [
         {
@@ -14,23 +14,23 @@ const UserTable = (props) => {
         },
         {
             Header: 'Email', // Add Email
-            accessor: 'email', 
+            accessor: 'email',
         },
         {
             Header: 'Actions',
-            Cell: ({ row }) => (
+            Cell: (cellProps) => (
                 <div>
-                    <Button 
-                        color="info" 
-                        size="sm" 
-                        onClick={() => props.onEdit(row.original)}
+                    <Button
+                        color="info"
+                        size="sm"
+                        onClick={() => props.onEdit(cellProps.original)}
                     >
                         Edit
                     </Button>{' '}
-                    <Button 
-                        color="danger" 
-                        size="sm" 
-                        onClick={() => props.onDelete(row.original.id)}
+                    <Button
+                        color="danger"
+                        size="sm"
+                        onClick={() => props.onDelete(cellProps.original.id)}
                     >
                         Delete
                     </Button>
