@@ -122,7 +122,6 @@ const DevicePage = () => {
         });
     };
 
-    // [!code ++]
     // --- Smarter Sync Function ---
     const syncUsers = () => {
         console.log("Starting user sync...");
@@ -145,8 +144,14 @@ const DevicePage = () => {
                 const existingUsernames = deviceUsers.map(u => u.username);
                 
                 // 3. Find which users are missing
+                // [!code --]
+                // const missingUsers = allPeople.filter(person => 
+                //     !existingUsernames.includes(person.fullName)
+                // );
+                // [!code ++]
+                // --- FIX: Compare against person.email ---
                 const missingUsers = allPeople.filter(person => 
-                    !existingUsernames.includes(person.fullName)
+                    !existingUsernames.includes(person.email)
                 );
 
                 if (missingUsers.length === 0) {
@@ -159,14 +164,18 @@ const DevicePage = () => {
 
                 // 4. Create a POST request for each missing user
                 const promises = missingUsers.map(person => {
-                    const deviceUser = { username: person.fullName };
+                    // [!code --]
+                    // const deviceUser = { username: person.fullName };
+                    // [!code ++]
+                    // --- FIX: Create user with person.email ---
+                    const deviceUser = { username: person.email }; 
                     return new Promise((resolve, reject) => {
                         deviceApi.postUser(deviceUser, (res, status, err) => {
                             if (err) {
-                                console.error("Failed to sync user " + person.fullName, err);
+                                console.error("Failed to sync user " + person.email, err);
                                 reject(err);
                             } else {
-                                console.log("Synced user: " + person.fullName);
+                                console.log("Synced user: " + person.email);
                                 resolve(res);
                             }
                         });
@@ -186,7 +195,7 @@ const DevicePage = () => {
             });
         });
     };
-    // [!code --]
+   
 
     return (
         <div>
