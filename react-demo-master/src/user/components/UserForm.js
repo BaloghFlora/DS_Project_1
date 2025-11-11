@@ -1,59 +1,60 @@
+// src/user/components/UserForm.js
 import React from 'react';
-import validate from "./validators/person-validators";
+import validate from "./validators/user-validators"; // Renamed
 import Button from "react-bootstrap/Button";
-import * as API_USERS from "../api/person-api";
+import * as API_USERS from "../user-api"; // Renamed
 import APIResponseErrorMessage from "../../commons/errorhandling/api-response-error-message";
 import {Col, Row} from "reactstrap";
 import { FormGroup, Input, Label} from 'reactstrap';
 
-
-
-class PersonForm extends React.Component {
+class UserForm extends React.Component {
 
     constructor(props) {
         super(props);
         this.toggleForm = this.toggleForm.bind(this);
         this.reloadHandler = this.props.reloadHandler;
+        
+        // --- NEW: Check if we are editing ---
+        this.isEdit = this.props.user ? true : false;
+        const user = this.props.user;
 
         this.state = {
-
             errorStatus: 0,
             error: null,
-
-            formIsValid: false,
-
+            formIsValid: this.isEdit, // Form is valid on edit
             formControls: {
                 name: {
-                    value: '',
+                    value: user ? user.fullName : '', // Use fullName
                     placeholder: 'What is your name?...',
-                    valid: false,
-                    touched: false,
+                    valid: this.isEdit,
+                    touched: this.isEdit,
                     validationRules: {
                         minLength: 3,
                         isRequired: true
                     }
                 },
                 email: {
-                    value: '',
+                    value: user ? user.email : '',
                     placeholder: 'Email...',
-                    valid: false,
-                    touched: false,
+                    valid: this.isEdit,
+                    touched: this.isEdit,
                     validationRules: {
                         emailValidator: true
                     }
                 },
-                age: {
-                    value: '',
-                    placeholder: 'Age...',
-                    valid: false,
+                // --- NEW: Add password field ---
+                password: {
+                    value: '', // Don't prefill password
+                    placeholder: this.isEdit ? 'New Password (optional)...' : 'Password...',
+                    valid: this.isEdit, // Valid if empty on edit
                     touched: false,
+                    validationRules: {
+                        // Only required when creating a new user
+                        isRequired: !this.isEdit 
+                    }
                 },
-                address: {
-                    value: '',
-                    placeholder: 'Cluj, Zorilor, Str. Lalelelor 21...',
-                    valid: false,
-                    touched: false,
-                },
+                // Note: The DTOs in user-service don't have age or address
+                // I am removing them to match the backend
             }
         };
 
@@ -65,19 +66,21 @@ class PersonForm extends React.Component {
         this.setState({collapseForm: !this.state.collapseForm});
     }
 
-
     handleChange = event => {
-
         const name = event.target.name;
         const value = event.target.value;
-
         const updatedControls = this.state.formControls;
-
         const updatedFormElement = updatedControls[name];
 
         updatedFormElement.value = value;
         updatedFormElement.touched = true;
         updatedFormElement.valid = validate(value, updatedFormElement.validationRules);
+        
+        // --- NEW: Special rule for password on edit ---
+        if (this.isEdit && name === 'password' && value === '') {
+             updatedFormElement.valid = true; // Empty password is ok on edit
+        }
+
         updatedControls[name] = updatedFormElement;
 
         let formIsValid = true;
@@ -89,7 +92,6 @@ class PersonForm extends React.Component {
             formControls: updatedControls,
             formIsValid: formIsValid
         });
-
     };
 
     registerPerson(person) {
@@ -106,22 +108,46 @@ class PersonForm extends React.Component {
         });
     }
 
+    // --- NEW: Update Function ---
+    updatePerson(userId, person) {
+        return API_USERS.updateUser(userId, person, (result, status, error) => {
+            if (result !== null && status === 200) {
+                console.log("Successfully updated person with id: " + result.id);
+                this.reloadHandler();
+            } else {
+                this.setState(({
+                    errorStatus: status,
+                    error: error
+                }));
+            }
+        });
+    }
+
     handleSubmit() {
         let person = {
-            name: this.state.formControls.name.value,
+            fullName: this.state.formControls.name.value,
             email: this.state.formControls.email.value,
-            age: this.state.formControls.age.value,
-            address: this.state.formControls.address.value
+            password: this.state.formControls.password.value,
         };
 
-        console.log(person);
-        this.registerPerson(person);
+        // --- NEW: Check if editing or creating ---
+        if (this.isEdit) {
+            // If password field is empty, don't send it
+            if (person.password === "") {
+                const { password, ...personWithoutPassword } = person;
+                // You MUST update your backend DTO/Service to handle null passwords on update
+                // For now, we'll send the original password back
+                person.password = this.props.user.password; 
+            }
+            this.updatePerson(this.props.user.id, person);
+        } else {
+            this.registerPerson(person);
+        }
     }
 
     render() {
         return (
             <div>
-
                 <FormGroup id='name'>
                     <Label for='nameField'> Name: </Label>
                     <Input name='name' id='nameField' placeholder={this.state.formControls.name.placeholder}
@@ -148,34 +174,28 @@ class PersonForm extends React.Component {
                     <div className={"error-message"}> * Email must have a valid format</div>}
                 </FormGroup>
 
-                <FormGroup id='address'>
-                    <Label for='addressField'> Address: </Label>
-                    <Input name='address' id='addressField' placeholder={this.state.formControls.address.placeholder}
+                {/* --- NEW: Password Field --- */}
+                <FormGroup id='password'>
+                    <Label for='passwordField'> Password: </Label>
+                    <Input type="password" name='password' id='passwordField' 
+                           placeholder={this.state.formControls.password.placeholder}
                            onChange={this.handleChange}
-                           defaultValue={this.state.formControls.address.value}
-                           touched={this.state.formControls.address.touched? 1 : 0}
-                           valid={this.state.formControls.address.valid}
-                           required
+                           defaultValue={this.state.formControls.password.value}
+                           touched={this.state.formControls.password.touched? 1 : 0}
+                           valid={this.state.formControls.password.valid}
+                           required={!this.isEdit} // Only required on create
                     />
+                    {this.state.formControls.password.touched && !this.state.formControls.password.valid &&
+                    <div className={"error-message"}> * Password is required</div>}
                 </FormGroup>
+                
+                {/* Removed Age and Address fields */}
 
-                <FormGroup id='age'>
-                    <Label for='ageField'> Age: </Label>
-                    <Input name='age' id='ageField' placeholder={this.state.formControls.age.placeholder}
-                           min={0} max={100} type="number"
-                           onChange={this.handleChange}
-                           defaultValue={this.state.formControls.age.value}
-                           touched={this.state.formControls.age.touched? 1 : 0}
-                           valid={this.state.formControls.age.valid}
-                           required
-                    />
-                </FormGroup>
-
-                    <Row>
-                        <Col sm={{size: '4', offset: 8}}>
-                            <Button type={"submit"} disabled={!this.state.formIsValid} onClick={this.handleSubmit}>  Submit </Button>
-                        </Col>
-                    </Row>
+                <Row>
+                    <Col sm={{size: '4', offset: 8}}>
+                        <Button type={"submit"} disabled={!this.state.formIsValid} onClick={this.handleSubmit}>  Submit </Button>
+                    </Col>
+                </Row>
 
                 {
                     this.state.errorStatus > 0 &&
@@ -186,4 +206,4 @@ class PersonForm extends React.Component {
     }
 }
 
-export default PersonForm;
+export default UserForm;

@@ -1,17 +1,23 @@
+// src/index.js
 import React from 'react';
-import ReactDOM from 'react-dom';
+import ReactDOM from 'react-dom/client';
 import './index.css';
 import * as serviceWorker from './serviceWorker';
-import App from './app'
-
+import App from './app';
+import { AuthProvider } from './auth/AuthContext';
+import { BrowserRouter as Router } from 'react-router-dom'; // <-- 1. IMPORT ROUTER HERE
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-ReactDOM.render(
-    <App />,
-    document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+    <React.StrictMode>
+        <Router> {/* <--- 2. WRAP EVERYTHING WITH ROUTER */}
+            <AuthProvider>
+                <App />
+            </AuthProvider>
+        </Router>
+    </React.StrictMode>
+);
 
-// If you want your app to work offline and load faster, you can change
-// unregister() to register() below. Note this comes with some pitfalls.
-// Learn more about service workers: http://bit.ly/CRA-PWA
 serviceWorker.unregister();

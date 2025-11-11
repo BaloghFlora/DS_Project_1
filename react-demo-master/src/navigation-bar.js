@@ -1,48 +1,43 @@
-import React from 'react'
+// src/navigation-bar.js
+import React from 'react';
 import logo from './commons/images/icon.png';
-
 import {
-    DropdownItem,
-    DropdownMenu,
-    DropdownToggle,
     Nav,
     Navbar,
     NavbarBrand,
     NavLink,
-    UncontrolledDropdown
+    Button
 } from 'reactstrap';
+import { useAuth } from './auth/AuthContext';
+import { Link } from 'react-router-dom';
 
-const textStyle = {
-    color: 'white',
-    textDecoration: 'none'
+const NavigationBar = () => {
+    const { user, isAdmin, logout } = useAuth();
+
+    return (
+        <div>
+            <Navbar color="dark" light expand="md">
+                <NavbarBrand tag={Link} to="/">
+                    <img src={logo} width={"50"} height={"35"} alt="logo" />
+                </NavbarBrand>
+                <Nav className="mr-auto" navbar>
+                    {user && (
+                        <NavLink tag={Link} to="/devices" style={{ color: 'white' }}>Devices</NavLink>
+                    )}
+                    {isAdmin && (
+                        <NavLink tag={Link} to="/users" style={{ color: 'white' }}>Users</NavLink>
+                    )}
+                </Nav>
+                <Nav className="ms-auto" navbar>
+                    {user ? (
+                        <Button color="primary" onClick={logout}>Logout</Button>
+                    ) : (
+                        <Button color="primary" tag={Link} to="/login">Login</Button>
+                    )}
+                </Nav>
+            </Navbar>
+        </div>
+    );
 };
 
-const NavigationBar = () => (
-    <div>
-        <Navbar color="dark" light expand="md">
-            <NavbarBrand href="/">
-                <img src={logo} width={"50"}
-                     height={"35"} />
-            </NavbarBrand>
-            <Nav className="mr-auto" navbar>
-
-                <UncontrolledDropdown nav inNavbar>
-                    <DropdownToggle style={textStyle} nav caret>
-                       Menu
-                    </DropdownToggle>
-                    <DropdownMenu right >
-
-                        <DropdownItem>
-                            <NavLink href="/person">Persons</NavLink>
-                        </DropdownItem>
-
-
-                    </DropdownMenu>
-                </UncontrolledDropdown>
-
-            </Nav>
-        </Navbar>
-    </div>
-);
-
-export default NavigationBar
+export default NavigationBar;
