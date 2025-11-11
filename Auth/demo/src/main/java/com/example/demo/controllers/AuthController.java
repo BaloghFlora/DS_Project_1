@@ -30,36 +30,62 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-public ResponseEntity<Map<String, String>> login(@RequestParam String username, @RequestParam String password) {
-    
-    Credential credential = credentialRepository.findByUsername(username)
-            .orElseThrow(() -> new RuntimeException("Invalid username or password"));
+    public ResponseEntity<Map<String, String>> login(@RequestParam String username, @RequestParam String password) {
 
-    if (!passwordEncoder.matches(password, credential.getPassword())) {
-        throw new RuntimeException("Invalid username or password");
+        Credential credential = credentialRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Invalid username or password"));
+
+        if (!passwordEncoder.matches(password, credential.getPassword())) {
+            throw new RuntimeException("Invalid username or password");
+        }
+
+        var key = Keys.hmacShaKeyFor(SECRET.getBytes());
+
+        List<String> roles = List.of(credential.getRole());
+        if (credential.getRole().equals("ROLE_ADMIN")) {
+            roles = List.of("ROLE_ADMIN", "ROLE_USER");
+        }
+
+        String token = Jwts.builder()
+                .subject(credential.getUsername())
+                .claim("role", roles)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 3600_000))
+                .signWith(key)
+                .compact();
+
+        Map<String, String> response = Map.of(
+                "token", token,
+                "user", credential.getUsername(),
+                "roles", String.join(",", roles));
+
+        return ResponseEntity.ok(response); // Return ResponseEntity with OK status
     }
 
-    var key = Keys.hmacShaKeyFor(SECRET.getBytes());
-    
-    List<String> roles = List.of(credential.getRole());
-    if (credential.getRole().equals("ROLE_ADMIN")) {
-        roles = List.of("ROLE_ADMIN", "ROLE_USER");
+    @PostMapping("/register")
+    public ResponseEntity<Void> register(@RequestParam String username, @RequestParam String password,
+            @RequestParam String role) {
+        if (credentialRepository.findByUsername(username).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build(); // User already exists
+        }
+
+        Credential credential = new Credential(
+                username,
+                passwordEncoder.encode(password),
+                role);
+        credentialRepository.save(credential);
+
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    String token = Jwts.builder()
-            .subject(credential.getUsername())
-            .claim("role", roles)
-            .issuedAt(new Date())
-            .expiration(new Date(System.currentTimeMillis() + 3600_000))
-            .signWith(key)
-            .compact();
-
-    Map<String, String> response = Map.of(
-        "token", token, 
-        "user", credential.getUsername(), 
-        "roles", String.join(",", roles)
-    );
-    
-    return ResponseEntity.ok(response); // Return ResponseEntity with OK status
-}
+    @DeleteMapping("/delete")
+    public ResponseEntity<Void> delete(@RequestParam String username) {
+        Credential credential = credentialRepository.findByUsername(username)
+                .orElse(null);
+        if (credential == null) {
+            return ResponseEntity.notFound().build();
+        }
+        credentialRepository.delete(credential);
+        return ResponseEntity.ok().build();
+    }
 }

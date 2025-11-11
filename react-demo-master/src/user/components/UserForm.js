@@ -152,7 +152,7 @@ class UserForm extends React.Component {
                     <Label for='nameField'> Name: </Label>
                     <Input name='name' id='nameField' placeholder={this.state.formControls.name.placeholder}
                            onChange={this.handleChange}
-                           defaultValue={this.state.formControls.name.value}
+                           value={this.state.formControls.name.value}
                            touched={this.state.formControls.name.touched? 1 : 0}
                            valid={this.state.formControls.name.valid}
                            required
@@ -165,7 +165,7 @@ class UserForm extends React.Component {
                     <Label for='emailField'> Email: </Label>
                     <Input name='email' id='emailField' placeholder={this.state.formControls.email.placeholder}
                            onChange={this.handleChange}
-                           defaultValue={this.state.formControls.email.value}
+                           value={this.state.formControls.email.value}
                            touched={this.state.formControls.email.touched? 1 : 0}
                            valid={this.state.formControls.email.valid}
                            required
@@ -180,7 +180,7 @@ class UserForm extends React.Component {
                     <Input type="password" name='password' id='passwordField' 
                            placeholder={this.state.formControls.password.placeholder}
                            onChange={this.handleChange}
-                           defaultValue={this.state.formControls.password.value}
+                           value={this.state.formControls.password.value}
                            touched={this.state.formControls.password.touched? 1 : 0}
                            valid={this.state.formControls.password.valid}
                            required={!this.isEdit} // Only required on create
