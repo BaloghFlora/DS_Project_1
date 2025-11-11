@@ -1,36 +1,36 @@
-// src/user/UserPage.js
 import React from 'react';
 import APIResponseErrorMessage from "../commons/errorhandling/api-response-error-message";
 import {
     Button,
     Card,
     CardHeader,
+    CardBody,
+    CardTitle,
+    CardText,
     Col,
     Modal,
     ModalBody,
     ModalHeader,
     Row
 } from 'reactstrap';
-import UserForm from "./components/UserForm"; // Renamed
-import UserTable from "./components/UserTable"; // Renamed
-import * as API_USERS from "./user-api"; // Renamed
+import UserForm from "./components/UserForm";
+import * as API_USERS from "./user-api";
 
 class UserPage extends React.Component {
 
     constructor(props) {
         super(props);
-        this.toggleForm = this.toggleForm.bind(this);
+        this.toggleAddForm = this.toggleAddForm.bind(this);
+        this.toggleEditForm = this.toggleEditForm.bind(this);
         this.reload = this.reload.bind(this);
         this.handleDelete = this.handleDelete.bind(this);
-        this.handleEdit = this.handleEdit.bind(this);
 
         this.state = {
-            selected: false,
-            tableData: [],
+            users: [], // Renamed from tableData
             isLoaded: false,
             errorStatus: 0,
             error: null,
-            // --- NEW STATE for editing ---
+            isAddModalOpen: false,
             isEditModalOpen: false,
             editingUser: null
         };
@@ -44,7 +44,7 @@ class UserPage extends React.Component {
         return API_USERS.getPersons((result, status, err) => {
             if (result !== null && status === 200) {
                 this.setState({
-                    tableData: result,
+                    users: result, // Set users
                     isLoaded: true
                 });
             } else {
@@ -56,26 +56,12 @@ class UserPage extends React.Component {
         });
     }
 
-    // Toggle Add form
-    toggleForm() {
-        this.setState({ selected: !this.state.selected });
-    }
-
-    // --- NEW: Toggle Edit form ---
-    toggleEditForm(user) {
-        this.setState({ 
-            isEditModalOpen: !this.state.isEditModalOpen,
-            editingUser: user || null // Set user if opening, clear if closing
-        });
-    }
-    
-    // --- NEW: Handle Delete ---
     handleDelete(userId) {
         if (window.confirm('Are you sure you want to delete this user?')) {
             API_USERS.deleteUser(userId, (result, status, err) => {
                 if (status === 204) {
                     console.log("User deleted successfully");
-                    this.fetchPersons(); // Refresh table
+                    this.fetchPersons(); // Refresh list
                 } else {
                     this.setState(({
                         errorStatus: status,
@@ -85,17 +71,23 @@ class UserPage extends React.Component {
             });
         }
     }
+    
+    toggleAddForm() {
+        this.setState({ isAddModalOpen: !this.state.isAddModalOpen });
+    }
 
-    // --- NEW: Handle Edit ---
-    handleEdit(user) {
-        this.toggleEditForm(user);
+    toggleEditForm(user) {
+        this.setState({ 
+            isEditModalOpen: !this.state.isEditModalOpen,
+            editingUser: user || null 
+        });
     }
 
     reload() {
         this.setState({
             isLoaded: false,
-            selected: false, // Close add modal
-            isEditModalOpen: false, // Close edit modal
+            isAddModalOpen: false,
+            isEditModalOpen: false,
             editingUser: null
         });
         this.fetchPersons();
@@ -111,38 +103,59 @@ class UserPage extends React.Component {
                     <br/>
                     <Row>
                         <Col sm={{ size: '8', offset: 1 }}>
-                            <Button color="primary" onClick={this.toggleForm}>Add User</Button>
+                            <Button color="primary" onClick={this.toggleAddForm}>Add User</Button>
                         </Col>
                     </Row>
                     <br/>
                     <Row>
-                        <Col sm={{ size: '8', offset: 1 }}>
-                            {this.state.isLoaded && 
-                                <UserTable 
-                                    tableData={this.state.tableData}
-                                    // --- NEW: Pass handlers to table ---
-                                    onEdit={this.handleEdit}
-                                    onDelete={this.handleDelete}
-                                />
-                            }
+                        <Col sm={{ size: '10', offset: 1 }}>
+                            {this.state.isLoaded && this.state.users.map(user => (
+                                <Card body key={user.id} style={{ marginBottom: '10px' }}>
+                                    <Row>
+                                        <Col xs="8">
+                                            <CardTitle tag="h5">{user.fullName}</CardTitle>
+                                            <CardText>{user.email}</CardText>
+                                        </Col>
+                                        <Col xs="4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                            <Button 
+                                                color="info" 
+                                                size="sm" 
+                                                onClick={() => this.toggleEditForm(user)}
+                                                style={{ marginRight: '10px' }}
+                                            >
+                                                Edit
+                                            </Button>
+                                            <Button 
+                                                color="danger" 
+                                                size="sm" 
+                                                onClick={() => this.handleDelete(user.id)}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </Col>
+                                    </Row>
+                                </Card>
+                            ))}
+                            
                             {this.state.errorStatus > 0 && <APIResponseErrorMessage
                                                             errorStatus={this.state.errorStatus}
                                                             error={this.state.error}
                                                         />   }
                         </Col>
                     </Row>
+                    <br/>
                 </Card>
 
                 {/* --- ADD MODAL --- */}
-                <Modal isOpen={this.state.selected} toggle={this.toggleForm}
+                <Modal isOpen={this.state.isAddModalOpen} toggle={this.toggleAddForm}
                        className={this.props.className} size="lg">
-                    <ModalHeader toggle={this.toggleForm}> Add User: </ModalHeader>
+                    <ModalHeader toggle={this.toggleAddForm}> Add User: </ModalHeader>
                     <ModalBody>
                         <UserForm reloadHandler={this.reload}/>
                     </ModalBody>
                 </Modal>
 
-                {/* --- NEW: EDIT MODAL --- */}
+                {/* --- EDIT MODAL --- */}
                 {this.state.isEditModalOpen && (
                     <Modal isOpen={this.state.isEditModalOpen} toggle={() => this.toggleEditForm(null)}
                         className={this.props.className} size="lg">
@@ -150,7 +163,6 @@ class UserPage extends React.Component {
                         <ModalBody>
                             <UserForm 
                                 reloadHandler={this.reload}
-                                // Pass the user to the form
                                 user={this.state.editingUser} 
                             />
                         </ModalBody>

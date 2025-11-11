@@ -21,7 +21,7 @@ http:
 
     # --- Router for DEVICE service ---
     router-devices:
-      rule: "Host(`localhost`) && (PathPrefix(`/api/devices`) || PathPrefix(`/api/device-users`))"
+      rule: "Host(`localhost`) && (PathPrefix(`/api/devices`) || PathPrefix(`/api/device-users`) || PathPrefix(`/api/users`))"
       entryPoints:
         - web
       middlewares:

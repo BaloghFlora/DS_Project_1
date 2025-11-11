@@ -4,8 +4,9 @@ import RestApiClient from "../commons/api/rest-client";
 
 const endpoint = {
     devices: '/api/devices',
-    myDevices: '/api/devices/my-devices', // <-- New endpoint
-    deviceUsers: '/api/device-users'
+    myDevices: '/api/devices/my-devices', 
+    deviceUsers: '/api/device-users',
+    users: '/api/users'
 };
 
 // --- NEW FUNCTION ---
@@ -16,6 +17,12 @@ function getMyDevices(callback) {
     RestApiClient.performRequest(request, callback);
 }
 
+function getUsers(callback) {
+    let request = new Request(HOST.backend_api + endpoint.users, {
+        method: 'GET',
+    });
+    RestApiClient.performRequest(request, callback);
+}
 function getDevices(callback) {
     let request = new Request(HOST.backend_api + endpoint.devices, {
         method: 'GET',
@@ -35,6 +42,30 @@ function postDevice(device, callback){
     RestApiClient.performRequest(request, callback);
 }
 
+function registerDevice(device, callback){
+    let request = new Request(HOST.backend_api + endpoint.devices , {
+        method: 'POST',
+        headers : {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(device)
+    });
+    RestApiClient.performRequest(request, callback);
+}
+
+function postUser(user, callback){
+    let request = new Request(HOST.backend_api + endpoint.users , {
+        method: 'POST',
+        headers : {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(user)
+    });
+    console.log("URL: " + request.url);
+    RestApiClient.performRequest(request, callback);
+}
 // --- NEW FUNCTION ---
 function updateDevice(deviceId, device, callback) {
     let request = new Request(HOST.backend_api + endpoint.devices + `/${deviceId}`, {
@@ -66,7 +97,10 @@ export {
     getMyDevices, // <-- Export new function
     getDevices,
     postDevice,
+    getUsers,
     updateDevice, // <-- Export new function
     deleteDevice,
-    assignDevice
+    assignDevice,
+    postUser, // <-- Export new function
+    registerDevice
 };

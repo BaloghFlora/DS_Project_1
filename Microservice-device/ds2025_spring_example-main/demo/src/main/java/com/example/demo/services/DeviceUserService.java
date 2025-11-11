@@ -7,6 +7,10 @@ import com.example.demo.repositories.DeviceRepository;
 import com.example.demo.repositories.DeviceUserRepository;
 import com.example.demo.repositories.UserRepository;
 import org.springframework.stereotype.Service;
+// [!code ++]
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
+// [!code --]
 
 import java.util.List;
 import java.util.UUID;
@@ -28,6 +32,13 @@ public class DeviceUserService {
     }
 
     public void assignDeviceToUser(UUID deviceId, UUID userId) {
+        // [!code ++]
+        // --- CHECK FOR EXISTING ASSIGNMENT ---
+        if (deviceUserRepository.existsByDeviceIdAndUserId(deviceId, userId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User is already assigned to this device");
+        }
+        // [!code --]
+
         Device device = deviceRepository.findById(deviceId)
                 .orElseThrow(() -> new RuntimeException("Device not found"));
         User user = userRepository.findById(userId)

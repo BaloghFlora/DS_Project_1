@@ -30,11 +30,13 @@ public class DeviceController {
 
 
     @GetMapping
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<List<DeviceDTO>> getDevices() {
         return ResponseEntity.ok(deviceService.findDevices());
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<Void> create(@Valid @RequestBody DeviceDetailsDTO device) {
         UUID id = deviceService.insert(device);
         URI location = ServletUriComponentsBuilder
@@ -46,17 +48,20 @@ public class DeviceController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<DeviceDetailsDTO> getDevice(@PathVariable UUID id) {
         return ResponseEntity.ok(deviceService.findDeviceById(id));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteDevice(@PathVariable UUID id) {
         deviceService.deleteDevice(id);
         return ResponseEntity.noContent().build(); // 204 No Content
     }
 
     @PostMapping("/{deviceId}/users/{userId}")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<Void> assignUserToDevice(
             @PathVariable UUID deviceId,
             @PathVariable UUID userId) {
