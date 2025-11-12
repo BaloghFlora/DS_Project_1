@@ -9,11 +9,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import javax.annotation.processing.SupportedOptions;
 
 @RestController
 @CrossOrigin
@@ -27,11 +35,12 @@ public class PersonController {
         this.personService = personService;
     }
 
-    /**
-     * This method fixes the first build error.
-     * It correctly converts the List<PersonDetailsDTO> from the service
-     * into the List<PersonDTO> expected by the API.
-     */
+    
+    @Operation(summary = "Retrieves all people",
+               description = "Fetches a list of all people with their basic details.")
+    @ApiResponse(responseCode = "200", description = "Successfully retrieved list",
+                 content = @Content(mediaType = "application/json",
+                 schema = @Schema(implementation = PersonDTO.class)))
     @GetMapping()
     public ResponseEntity<List<PersonDTO>> getPersons() {
         List<PersonDetailsDTO> dtos = personService.findPersons();
@@ -42,21 +51,21 @@ public class PersonController {
         return new ResponseEntity<>(dtos1, HttpStatus.OK);
     }
 
-    /**
-     * This method fixes the second build error.
-     * It correctly returns the 'person' DTO it received,
-     * not the 'UUID' from the service.
-     */
+   @Operation(summary = "Updates an existing person",
+               description = "Updates the details of a person specified by their ID.")
+    @ApiResponse(responseCode = "200", description = "Person updated successfully")
+    @ApiResponse(responseCode = "404", description = "Person not found")
     @PutMapping(value = "/{id}")
-    public ResponseEntity<PersonDetailsDTO> update(@PathVariable("id") UUID id, @Valid @RequestBody PersonDetailsDTO person) {
+    public ResponseEntity<PersonDetailsDTO> update(@Parameter(description = "The UUID of the person to update")
+            @PathVariable("id") UUID id, @Valid @RequestBody PersonDetailsDTO person) {
         personService.update(id, person);
         return new ResponseEntity<>(person, HttpStatus.OK);
     }
 
-    /**
-     * This is the 'create' method we fixed two steps ago
-     * to return the UUID for the frontend.
-     */
+    @Operation(summary = "Creates a new person",
+               description = "Creates a new person and registers them in the auth service.")
+    @ApiResponse(responseCode = "201", description = "Person created successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid person data supplied")
     @PostMapping
     public ResponseEntity<UUID> create(@Valid @RequestBody PersonDetailsDTO person) {
         UUID id = personService.insert(person);
@@ -68,14 +77,23 @@ public class PersonController {
         return ResponseEntity.created(location).body(id);
     }
 
+    @Operation(summary = "Retrieves a person by ID",
+               description = "Fetches the details of a person specified by their ID.")
+    @ApiResponse(responseCode = "200", description = "Person retrieved successfully")
+    @ApiResponse(responseCode = "404", description = "Person not found")
     @GetMapping(value = "/{id}")
-    public ResponseEntity<PersonDetailsDTO> getPerson(@PathVariable("id") UUID id) {
+    public ResponseEntity<PersonDetailsDTO> getPerson(@Parameter(description = "The UUID of the person to retrieve") 
+        @PathVariable("id") UUID id) {
         PersonDetailsDTO dto = personService.findPersonById(id);
         return new ResponseEntity<>(dto, HttpStatus.OK);
     }
-
+    @Operation(summary = "Deletes a person by ID",
+               description = "Deletes the person specified by their ID from the system.")
+    @ApiResponse(responseCode = "200", description = "Person deleted successfully")
+    @ApiResponse(responseCode = "404", description = "Person not found")
     @DeleteMapping(value = "/{id}")
-    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
+    public ResponseEntity<Void> delete(@Parameter(description = "The UUID of the person to delete") 
+    @PathVariable("id") UUID id) {
         personService.delete(id);
         return new ResponseEntity<>(HttpStatus.OK);
     }

@@ -8,7 +8,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +32,9 @@ public class AuthController {
         this.credentialRepository = credentialRepository;
         this.passwordEncoder = passwordEncoder;
     }
-
+    @Operation(summary = "User login",
+               description = "Authenticates a user and returns a JWT token upon successful login.") 
+    @ApiResponse(responseCode = "200", description = "Login successful")
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestParam String username, @RequestParam String password) {
 
@@ -61,7 +67,9 @@ public class AuthController {
 
         return ResponseEntity.ok(response); // Return ResponseEntity with OK status
     }
-
+    @Operation(summary = "User registration",
+               description = "Registers a new user with the provided username, password, and role.")
+    @ApiResponse(responseCode = "201", description = "User registered successfully")
     @PostMapping("/register")
     public ResponseEntity<Void> register(@RequestParam String username, @RequestParam String password,
             @RequestParam String role) {
@@ -77,7 +85,9 @@ public class AuthController {
 
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
-
+    @Operation(summary = "Delete user",
+               description = "Deletes an existing user specified by their username.")
+    @ApiResponse(responseCode = "200", description = "User deleted successfully")
     @DeleteMapping("/delete")
     public ResponseEntity<Void> delete(@RequestParam String username) {
         Credential credential = credentialRepository.findByUsername(username)
