@@ -24,11 +24,12 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // --- THIS IS THE FIX ---
-                        // Allow the POST /people endpoint to be called without authentication
-                        // This is for the auth-service to create user profiles.
-                        .requestMatchers(HttpMethod.POST, "/people").permitAll() 
+                        // --- ADD THESE TWO LINES ---
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
                         // ---------------------
+                        .requestMatchers(HttpMethod.POST, "/people").permitAll() 
                         .anyRequest().authenticated() // All other requests still require auth
                 )
                 .exceptionHandling(ex -> ex.accessDeniedHandler((req, res, e) -> {

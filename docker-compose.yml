@@ -84,6 +84,12 @@ services:
       - "traefik.http.services.auth-service.loadbalancer.server.port=8081"
       - "traefik.docker.network=app-network"
       - "traefik.http.routers.auth-service.entrypoints=web"
+      # --- Router for Swagger (strips /auth prefix) ---
+      - "traefik.http.routers.auth-swagger.rule=Host(`localhost`) && (PathPrefix(`/auth/swagger-ui`) || PathPrefix(`/auth/v3/api-docs`))"
+      - "traefik.http.routers.auth-swagger.service=auth-service"
+      - "traefik.http.routers.auth-swagger.entrypoints=web"
+      - "traefik.http.routers.auth-swagger.middlewares=strip-auth-swagger@docker"
+      - "traefik.http.routers.auth-swagger.priority=10"
       
   # --- 5. USER SERVICE ---
   user-service:
@@ -109,6 +115,12 @@ services:
       - "traefik.docker.network=app-network"
       - "traefik.http.routers.user-service.entrypoints=web"
       - "traefik.http.routers.user-service.middlewares=jwt-val@docker,strip-api@docker"
+      # --- Router for Swagger (strips /user prefix) ---
+      - "traefik.http.routers.user-swagger.rule=Host(`localhost`) && (PathPrefix(`/user/swagger-ui`) || PathPrefix(`/user/v3/api-docs`))"
+      - "traefik.http.routers.user-swagger.service=user-service"
+      - "traefik.http.routers.user-swagger.entrypoints=web"
+      - "traefik.http.routers.user-swagger.middlewares=strip-user-swagger@docker"
+      - "traefik.http.routers.user-swagger.priority=10"
 
   # --- 6. DEVICE SERVICE ---
   device-service:
@@ -134,6 +146,12 @@ services:
       - "traefik.docker.network=app-network"
       - "traefik.http.routers.device-service.entrypoints=web"
       - "traefik.http.routers.device-service.middlewares=jwt-val@docker,strip-api@docker"
+      # --- Router for Swagger (strips /device prefix) ---
+      - "traefik.http.routers.device-swagger.rule=Host(`localhost`) && (PathPrefix(`/device/swagger-ui`) || PathPrefix(`/device/v3/api-docs`))"
+      - "traefik.http.routers.device-swagger.service=device-service"
+      - "traefik.http.routers.device-swagger.entrypoints=web"
+      - "traefik.http.routers.device-swagger.middlewares=strip-device-swagger@docker"
+      - "traefik.http.routers.device-swagger.priority=10"
 
   # --- 7. TRAEFIK REVERSE PROXY ---
   reverse-proxy:
@@ -161,6 +179,12 @@ services:
       - "traefik.enable=true"
       # Strip API middleware
       - "traefik.http.middlewares.strip-api.stripprefix.prefixes=/api"
+      - "traefik.http.middlewares.strip-auth-swagger.stripprefix.prefixes=/auth"
+      # --- SWAGGER MIDDLEWARE (New) ---
+      # Defines 3 new middleware, one for each service's swagger
+      - "traefik.http.middlewares.strip-auth-swagger.stripprefix.prefixes=/auth"
+      - "traefik.http.middlewares.strip-user-swagger.stripprefix.prefixes=/user"
+      - "traefik.http.middlewares.strip-device-swagger.stripprefix.prefixes=/device"
       # JWT Middleware Definition
       - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.secret=supersecret123456supersecret123456"
       - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.signingMethod=HS256"

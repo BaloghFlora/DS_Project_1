@@ -1,0 +1,67 @@
+version: "3.9"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - sensor-net
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      POSTGRES_DB: sensor_db
+      POSTGRES_USER: sensor_user
+      POSTGRES_PASSWORD: sensor_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - sensor-net
+
+  sensor-producer:
+    build: ./producer
+    container_name: sensor-producer
+    depends_on:
+      - rabbitmq
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      APP_QUEUE_NAME: sensor.data.queue
+    networks:
+      - sensor-net
+
+  sensor-consumer:
+    build: ./consumer
+    container_name: sensor-consumer
+    depends_on:
+      - rabbitmq
+      - postgres
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      APP_QUEUE_NAME: sensor.data.queue
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sensor_db
+      SPRING_DATASOURCE_USERNAME: sensor_user
+      SPRING_DATASOURCE_PASSWORD: sensor_pass
+    networks:
+      - sensor-net
+
+networks:
+  sensor-net:
+    driver: bridge
+
+volumes:
+  pgdata:

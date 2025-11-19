@@ -209,7 +209,7 @@ const DevicePage = () => {
                         <Col sm={{ size: '8', offset: 1 }}>
                             <Button color="primary" onClick={toggleAddModal}>Add Device</Button>
                             <Button color="warning" onClick={syncUsers} style={{marginLeft: '10px'}}>
-                                Sync Users (Debug)
+                                Sync Users
                             </Button>
                         </Col>
                     </Row>
