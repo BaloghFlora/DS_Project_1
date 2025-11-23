@@ -94,7 +94,14 @@ public class PersonService {
             LOGGER.error("Failed to register credential for user {}: {}", personDTO.getEmail(), e.getMessage());
         }
         // --- END NEW CODE ---
-
+        SynchronizationEventDTO event = new SynchronizationEventDTO(
+                person.getId(), 
+                "USER", 
+                "CREATED", 
+                person.getFullName(), 
+                person.getEmail()
+            );
+            synchronizationService.publishEvent(event);
         return person.getId();
     }
 
@@ -125,6 +132,14 @@ public class PersonService {
         person.setPassword(personDTO.getPassword()); // Note: Passwords should be hashed in a real app
         person = personRepository.save(person);
         LOGGER.debug("Person with id {} was updated in db", person.getId());
+        SynchronizationEventDTO event = new SynchronizationEventDTO(
+            id, 
+            "USER", 
+            "UPDATED", 
+            person.getFullName(), 
+            person.getEmail()
+        );
+        synchronizationService.publishEvent(event);
         return person.getId();
     }
 
@@ -152,5 +167,13 @@ public class PersonService {
             LOGGER.error("Failed to delete credential for user {}: {}", person.getEmail(), e.getMessage());
         }
         // --- END NEW DELETE CODE ---
+        SynchronizationEventDTO event = new SynchronizationEventDTO(
+            id, 
+            "USER", 
+            "DELETED", 
+            person.getFullName(), 
+            person.getEmail()
+        );
+        synchronizationService.publishEvent(event);
     }
 }

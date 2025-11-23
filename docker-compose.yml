@@ -1,6 +1,21 @@
 version: '3.9'
 
 services:
+  # --- INFRASTRUCTURE SERVICES ---
+  
+  # RabbitMQ Broker for Data Collection AND Synchronization
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - app-network
+
   # --- 1. USER DATABASE ---
   user-db:
     image: postgres:15-alpine
@@ -63,8 +78,31 @@ services:
       retries: 5
     networks:
       - app-network
+      
+  # --- 4. MONITORING DATABASE (New) ---
+  monitoring-db:
+    image: postgres:15-alpine
+    restart: always
+    container_name: monitoring_postgres_db
+    environment:
+      POSTGRES_DB: sensor_db
+      POSTGRES_USER: sensor_user
+      POSTGRES_PASSWORD: sensor_pass
+    volumes:
+      - monitoring_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Default PostgreSQL port
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sensor_user -d sensor_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
 
-  # --- 4. AUTH SERVICE ---
+  # --- MICROSERVICES ---
+
+  # 5. AUTH SERVICE
   auth-service:
     build: ./Auth/demo
     container_name: auth-service
@@ -84,14 +122,13 @@ services:
       - "traefik.http.services.auth-service.loadbalancer.server.port=8081"
       - "traefik.docker.network=app-network"
       - "traefik.http.routers.auth-service.entrypoints=web"
-      # --- Router for Swagger (strips /auth prefix) ---
       - "traefik.http.routers.auth-swagger.rule=Host(`localhost`) && (PathPrefix(`/auth/swagger-ui`) || PathPrefix(`/auth/v3/api-docs`))"
       - "traefik.http.routers.auth-swagger.service=auth-service"
       - "traefik.http.routers.auth-swagger.entrypoints=web"
       - "traefik.http.routers.auth-swagger.middlewares=strip-auth-swagger@docker"
       - "traefik.http.routers.auth-swagger.priority=10"
       
-  # --- 5. USER SERVICE ---
+  # 6. USER SERVICE (Producer for USER Sync)
   user-service:
     build:
       context: ./Microservice-user/ds2025_spring_example-main/demo
@@ -100,12 +137,18 @@ services:
     depends_on:
       user-db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/users_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: admin
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SERVER_PORT: 8080
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
     networks:
       - app-network
     labels:
@@ -115,14 +158,13 @@ services:
       - "traefik.docker.network=app-network"
       - "traefik.http.routers.user-service.entrypoints=web"
       - "traefik.http.routers.user-service.middlewares=jwt-val@docker,strip-api@docker"
-      # --- Router for Swagger (strips /user prefix) ---
       - "traefik.http.routers.user-swagger.rule=Host(`localhost`) && (PathPrefix(`/user/swagger-ui`) || PathPrefix(`/user/v3/api-docs`))"
       - "traefik.http.routers.user-swagger.service=user-service"
       - "traefik.http.routers.user-swagger.entrypoints=web"
       - "traefik.http.routers.user-swagger.middlewares=strip-user-swagger@docker"
       - "traefik.http.routers.user-swagger.priority=10"
 
-  # --- 6. DEVICE SERVICE ---
+  # 7. DEVICE SERVICE (Consumer for USER Sync / Producer for DEVICE Sync)
   device-service:
     build:
       context: ./Microservice-device/ds2025_spring_example-main/demo
@@ -131,12 +173,18 @@ services:
     depends_on:
       device-db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://device-db:5432/devices_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: admin
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SERVER_PORT: 8080
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
     networks:
       - app-network
     labels:
@@ -146,14 +194,71 @@ services:
       - "traefik.docker.network=app-network"
       - "traefik.http.routers.device-service.entrypoints=web"
       - "traefik.http.routers.device-service.middlewares=jwt-val@docker,strip-api@docker"
-      # --- Router for Swagger (strips /device prefix) ---
       - "traefik.http.routers.device-swagger.rule=Host(`localhost`) && (PathPrefix(`/device/swagger-ui`) || PathPrefix(`/device/v3/api-docs`))"
       - "traefik.http.routers.device-swagger.service=device-service"
       - "traefik.http.routers.device-swagger.entrypoints=web"
       - "traefik.http.routers.device-swagger.middlewares=strip-device-swagger@docker"
       - "traefik.http.routers.device-swagger.priority=10"
 
-  # --- 7. TRAEFIK REVERSE PROXY ---
+  # 8. SENSOR DATA PRODUCER (New - Simulator)
+  sensor-producer:
+    build: ./Monitoring-microservice/producer
+    container_name: sensor-producer
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      device-service: 
+        condition: service_started
+      auth-service: # Ensure auth is started for token retrieval
+        condition: service_started
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      APP_QUEUE_NAME: sensor.data.queue
+      # Internal Docker Service URLs for REST communication
+      AUTH_SERVICE_URL: http://auth-service:8081 
+      DEVICE_SERVICE_URL: http://device_api_service:8080
+    networks:
+      - app-network
+
+  # 9. MONITORING CONSUMER (New - Aggregation/Sync Consumer & REST API)
+  monitoring-consumer:
+    build: ./Monitoring-microservice/consumer
+    container_name: monitoring-consumer
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      monitoring-db:
+        condition: service_healthy
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      APP_QUEUE_NAME: sensor.data.queue
+      SPRING_DATASOURCE_URL: jdbc:postgresql://monitoring-db:5432/sensor_db
+      SPRING_DATASOURCE_USERNAME: sensor_user
+      SPRING_DATASOURCE_PASSWORD: sensor_pass
+    networks:
+      - app-network
+    labels:
+      - "traefik.enable=true"
+      # Route for the Monitoring API endpoint (e.g., /api/monitoring/consumption)
+      - "traefik.http.routers.monitoring-service.rule=Host(`localhost`) && PathPrefix(`/api/monitoring`)"
+      - "traefik.http.services.monitoring-service.loadbalancer.server.port=8080" 
+      - "traefik.docker.network=app-network"
+      - "traefik.http.routers.monitoring-service.entrypoints=web"
+      - "traefik.http.routers.monitoring-service.middlewares=jwt-val@docker,strip-api@docker" # Applies JWT validation and strips /api
+      # Optional: Monitoring Swagger 
+      - "traefik.http.routers.monitoring-swagger.rule=Host(`localhost`) && (PathPrefix(`/monitor/swagger-ui`) || PathPrefix(`/monitor/v3/api-docs`))"
+      - "traefik.http.routers.monitoring-swagger.service=monitoring-consumer"
+      - "traefik.http.routers.monitoring-swagger.entrypoints=web"
+      - "traefik.http.routers.monitoring-swagger.middlewares=strip-monitor-swagger@docker"
+      - "traefik.http.routers.monitoring-swagger.priority=10"
+      
+  # 10. TRAEFIK REVERSE PROXY
   reverse-proxy:
     image: traefik:v3.1
     container_name: traefik
@@ -167,8 +272,8 @@ services:
       - "--experimental.plugins.jwtValidation.moduleName=github.com/legege/jwt-validation-middleware"
       - "--experimental.plugins.jwtValidation.version=v0.2.1"
     ports:
-      - "8000:80"
-      - "8082:8080"
+      - "8000:80" # Exposed port for client access
+      - "8082:8080" # Exposed port for Traefik dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_logs:/var/log/traefik
@@ -177,15 +282,13 @@ services:
       - app-network
     labels:
       - "traefik.enable=true"
-      # Strip API middleware
+      # Strip API middleware definitions
       - "traefik.http.middlewares.strip-api.stripprefix.prefixes=/api"
-      - "traefik.http.middlewares.strip-auth-swagger.stripprefix.prefixes=/auth"
-      # --- SWAGGER MIDDLEWARE (New) ---
-      # Defines 3 new middleware, one for each service's swagger
       - "traefik.http.middlewares.strip-auth-swagger.stripprefix.prefixes=/auth"
       - "traefik.http.middlewares.strip-user-swagger.stripprefix.prefixes=/user"
       - "traefik.http.middlewares.strip-device-swagger.stripprefix.prefixes=/device"
-      # JWT Middleware Definition
+      - "traefik.http.middlewares.strip-monitor-swagger.stripprefix.prefixes=/monitor" # Added new strip middleware
+      # JWT Middleware Definition (remains the same as per previous steps)
       - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.secret=supersecret123456supersecret123456"
       - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.signingMethod=HS256"
       - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.authHeader=true"
@@ -194,7 +297,7 @@ services:
       - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.payloadHeaders.X-User=sub"
       - "traefik.http.middlewares.jwt-val.plugin.jwtValidation.payloadHeaders.X-Role=role"
 
-# --- 8. FRONTEND SERVICE (ADDED) ---
+  # 11. FRONTEND SERVICE 
   frontend:
     build:
       context: ./react-demo-master
@@ -205,21 +308,19 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=app-network"
-      # --- Router for the frontend (React App) ---
       - "traefik.http.routers.frontend-service.rule=Host(`localhost`)"
       - "traefik.http.routers.frontend-service.entrypoints=web"
-      - "traefik.http.routers.frontend-service.priority=1" # <-- LOWEST priority
-      # --- Service definition for the frontend ---
-      - "traefik.http.services.frontend-service.loadbalancer.server.port=80" # Nginx serves on port 80
+      - "traefik.http.routers.frontend-service.priority=1"
+      - "traefik.http.services.frontend-service.loadbalancer.server.port=80"
 
 volumes:
   user_db_data:
   device_db_data:
   credential_db_data:
+  monitoring_db_data: 
   traefik_logs:
   plugins-storage:
   
-# --- NETWORKS ---
 networks:
   app-network:
     driver: bridge

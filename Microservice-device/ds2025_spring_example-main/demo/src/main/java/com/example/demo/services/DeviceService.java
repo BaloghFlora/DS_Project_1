@@ -73,7 +73,15 @@ public class DeviceService {
             link.setUser(userRepository.findById(userId).get());
             deviceUserRepository.save(link);
         }
-
+        SynchronizationEventDTO event = new SynchronizationEventDTO(
+            savedDevice.getId(), 
+            "DEVICE", 
+            "CREATED", 
+            savedDevice.getDeviceName(), 
+            null
+        );
+        synchronizationService.publishEvent(event);
+        
         return savedDevice.getId();
     }
     /**
@@ -88,7 +96,16 @@ public class DeviceService {
         
         // Note: This simple update does not re-assign users. 
         // A more complex implementation would compare dto.getUserIds() with existing links.
-        
+
+        // --- ASYNC: Publish DEVICE UPDATED Event ---
+        SynchronizationEventDTO event = new SynchronizationEventDTO(
+            updatedDevice.getId(), 
+            "DEVICE", 
+            "UPDATED", 
+            updatedDevice.getDeviceName(), 
+            null
+        );
+        synchronizationService.publishEvent(event);
         Device updatedDevice = deviceRepository.save(device);
         LOGGER.debug("Device with id {} was updated in db", updatedDevice.getId());
         return DeviceBuilder.toDeviceDetailsDTO(updatedDevice);
@@ -102,6 +119,15 @@ public class DeviceService {
         }
         deviceRepository.deleteById(id);
         LOGGER.debug("Device with id {} was deleted from db", id);
+        // --- ASYNC: Publish DEVICE DELETED Event ---
+        SynchronizationEventDTO event = new SynchronizationEventDTO(
+            id, 
+            "DEVICE", 
+            "DELETED", 
+            null, 
+            null
+        );
+        synchronizationService.publishEvent(event);
     }
 
     /**
