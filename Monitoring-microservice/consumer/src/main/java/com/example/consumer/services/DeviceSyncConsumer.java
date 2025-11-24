@@ -9,8 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.example.demo.dtos.SynchronizationEventDTO; // Placeholder - ensure the DTO is in your common/local DTO package
-
+import com.example.consumer.dtos.SynchronizationEventDTO;
 @Service
 public class DeviceSyncConsumer {
 

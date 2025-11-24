@@ -91,7 +91,7 @@ services:
     volumes:
       - monitoring_db_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432" # Default PostgreSQL port
+      - "5435:5432" # Default PostgreSQL port
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sensor_user -d sensor_db"]
       interval: 5s

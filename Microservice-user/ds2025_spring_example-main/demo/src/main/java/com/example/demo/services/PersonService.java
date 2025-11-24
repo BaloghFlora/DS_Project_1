@@ -1,6 +1,7 @@
 package com.example.demo.services;
 
 import com.example.demo.dtos.PersonDetailsDTO;
+import com.example.demo.dtos.SynchronizationEventDTO; // Added Import
 import com.example.demo.dtos.builders.PersonBuilder;
 import com.example.demo.entities.Person;
 import com.example.demo.handlers.exceptions.model.ResourceNotFoundException;
@@ -27,13 +28,18 @@ import java.util.stream.Collectors;
 public class PersonService {
     private static final Logger LOGGER = LoggerFactory.getLogger(PersonService.class);
     private final PersonRepository personRepository;
-    private final RestTemplate restTemplate; // <-- ADD THIS
-    private final String AUTH_SERVICE_URL = "http://auth-service:8081"; // <-- ADD THIS
+    private final RestTemplate restTemplate;
+    private final SynchronizationService synchronizationService; // Added field
+    
+    private final String AUTH_SERVICE_URL = "http://auth-service:8081";
 
     @Autowired
-    public PersonService(PersonRepository personRepository, RestTemplate restTemplate) { // <-- UPDATE THIS
+    public PersonService(PersonRepository personRepository, 
+                         RestTemplate restTemplate,
+                         SynchronizationService synchronizationService) { // Added injection
         this.personRepository = personRepository;
-        this.restTemplate = restTemplate; // <-- UPDATE THIS
+        this.restTemplate = restTemplate;
+        this.synchronizationService = synchronizationService;
     }
 
     /**
@@ -66,8 +72,7 @@ public class PersonService {
         person = personRepository.save(person);
         LOGGER.debug("Person with id {} was inserted in db", person.getId());
 
-        // --- START NEW CODE ---
-        // Now, register this user with the auth service
+        // 1. Register this user with the auth service
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -93,7 +98,8 @@ public class PersonService {
         } catch (Exception e) {
             LOGGER.error("Failed to register credential for user {}: {}", personDTO.getEmail(), e.getMessage());
         }
-        // --- END NEW CODE ---
+
+        // 2. Publish Async Event
         SynchronizationEventDTO event = new SynchronizationEventDTO(
                 person.getId(), 
                 "USER", 
@@ -101,7 +107,8 @@ public class PersonService {
                 person.getFullName(), 
                 person.getEmail()
             );
-            synchronizationService.publishEvent(event);
+        synchronizationService.publishEvent(event);
+        
         return person.getId();
     }
 
@@ -129,9 +136,11 @@ public class PersonService {
         Person person = personOptional.get();
         person.setFullName(personDTO.getFullName());
         person.setEmail(personDTO.getEmail());
-        person.setPassword(personDTO.getPassword()); // Note: Passwords should be hashed in a real app
+        person.setPassword(personDTO.getPassword()); 
         person = personRepository.save(person);
         LOGGER.debug("Person with id {} was updated in db", person.getId());
+        
+        // Publish Async Event
         SynchronizationEventDTO event = new SynchronizationEventDTO(
             id, 
             "USER", 
@@ -140,6 +149,7 @@ public class PersonService {
             person.getEmail()
         );
         synchronizationService.publishEvent(event);
+        
         return person.getId();
     }
 
@@ -153,11 +163,9 @@ public class PersonService {
         personRepository.delete(person);
         LOGGER.debug("Person with id {} was deleted from db", id);
 
-        // --- START NEW DELETE CODE ---
+        // 1. Delete credential from Auth service
         try {
-            // Use email as username
             String username = person.getEmail();
-            // We must URL-encode the username (e.g., "user@test.com")
             String urlEncodedUsername = java.net.URLEncoder.encode(username,
                     java.nio.charset.StandardCharsets.UTF_8.toString());
 
@@ -166,7 +174,8 @@ public class PersonService {
         } catch (Exception e) {
             LOGGER.error("Failed to delete credential for user {}: {}", person.getEmail(), e.getMessage());
         }
-        // --- END NEW DELETE CODE ---
+        
+        // 2. Publish Async Event
         SynchronizationEventDTO event = new SynchronizationEventDTO(
             id, 
             "USER", 

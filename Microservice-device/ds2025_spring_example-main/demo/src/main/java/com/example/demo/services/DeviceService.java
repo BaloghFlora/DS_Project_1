@@ -2,6 +2,7 @@ package com.example.demo.services;
 
 import com.example.demo.dtos.DeviceDTO;
 import com.example.demo.dtos.DeviceDetailsDTO;
+import com.example.demo.dtos.SynchronizationEventDTO; // 1. Added Import
 import com.example.demo.dtos.builders.DeviceBuilder;
 import com.example.demo.entities.Device;
 import com.example.demo.entities.DeviceUser;
@@ -16,9 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
 import java.util.Collections;
-
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,12 +30,17 @@ public class DeviceService {
     private final DeviceRepository deviceRepository;
     private final UserRepository userRepository;
     private final DeviceUserRepository deviceUserRepository;
+    private final SynchronizationService synchronizationService; // 2. Added Field
 
     @Autowired
-    public DeviceService(DeviceRepository deviceRepository, UserRepository userRepository, DeviceUserRepository deviceUserRepository) {
+    public DeviceService(DeviceRepository deviceRepository, 
+                         UserRepository userRepository, 
+                         DeviceUserRepository deviceUserRepository,
+                         SynchronizationService synchronizationService) { // 3. Added Injection
         this.deviceRepository = deviceRepository;
         this.userRepository = userRepository;
         this.deviceUserRepository = deviceUserRepository;
+        this.synchronizationService = synchronizationService;
     }
 
     public List<DeviceDTO> findDevices() {
@@ -63,7 +68,6 @@ public class DeviceService {
 
         // Step 2: create entries in UserDevice
         for (UUID userId : dto.getUserIds()) {
-            // Optional: validate user exists
             if (!userRepository.existsById(userId)) {
                 throw new RuntimeException("User not found: " + userId);
             }
@@ -73,6 +77,8 @@ public class DeviceService {
             link.setUser(userRepository.findById(userId).get());
             deviceUserRepository.save(link);
         }
+        
+        // 4. Send Sync Event
         SynchronizationEventDTO event = new SynchronizationEventDTO(
             savedDevice.getId(), 
             "DEVICE", 
@@ -84,9 +90,7 @@ public class DeviceService {
         
         return savedDevice.getId();
     }
-    /**
-        * Update an existing device.
-     */
+
     public DeviceDetailsDTO update(UUID id, DeviceDetailsDTO dto) {
         Device device = deviceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(Device.class.getSimpleName() + " with id: " + id));
@@ -94,10 +98,9 @@ public class DeviceService {
         device.setDeviceName(dto.getDeviceName());
         device.setDeviceStatus(dto.getDeviceStatus());
         
-        // Note: This simple update does not re-assign users. 
-        // A more complex implementation would compare dto.getUserIds() with existing links.
+        // 5. Fixed Logic: Save FIRST, then publish event using the saved object
+        Device updatedDevice = deviceRepository.save(device);
 
-        // --- ASYNC: Publish DEVICE UPDATED Event ---
         SynchronizationEventDTO event = new SynchronizationEventDTO(
             updatedDevice.getId(), 
             "DEVICE", 
@@ -106,12 +109,11 @@ public class DeviceService {
             null
         );
         synchronizationService.publishEvent(event);
-        Device updatedDevice = deviceRepository.save(device);
+        
         LOGGER.debug("Device with id {} was updated in db", updatedDevice.getId());
         return DeviceBuilder.toDeviceDetailsDTO(updatedDevice);
     }
 
-    
     public void deleteDevice(UUID id) {
         if (!deviceRepository.existsById(id)) {
             LOGGER.error("Attempted to delete non-existent device with id {}", id);
@@ -119,7 +121,8 @@ public class DeviceService {
         }
         deviceRepository.deleteById(id);
         LOGGER.debug("Device with id {} was deleted from db", id);
-        // --- ASYNC: Publish DEVICE DELETED Event ---
+        
+        // 6. Send Sync Event
         SynchronizationEventDTO event = new SynchronizationEventDTO(
             id, 
             "DEVICE", 
@@ -130,18 +133,13 @@ public class DeviceService {
         synchronizationService.publishEvent(event);
     }
 
-    /**
-     * Get all devices assigned to the currently logged-in user.
-     */
-    @PreAuthorize("hasRole('ROLE_USER')") // Ensures only users can access this
+    @PreAuthorize("hasRole('ROLE_USER')") 
     public List<DeviceDTO> findDevicesByUsername() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         
         Optional<User> userOptional = userRepository.findByUsername(username);
         if (userOptional.isEmpty()) {
             LOGGER.warn("User with username {} not found in device-service DB", username);
-            // This can happen if a user exists in auth-service but not in device-service's user table
-            // You must create a matching user in this service's DB via POST /users
             return Collections.emptyList();
         }
         

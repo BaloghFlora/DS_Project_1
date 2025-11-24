@@ -101,15 +101,24 @@ public class SensorReadingProducer {
         return null;
     }
 
-    private List<UUID> fetchDeviceIds(String token) {
+private List<UUID> fetchDeviceIds(String token) {
         try {
-            String url = deviceServiceUrl + "/devices"; // Matches @RequestMapping("/devices") in DeviceController
+            String url = deviceServiceUrl + "/devices"; 
             HttpHeaders headers = new HttpHeaders();
+            
+            // Standard Authorization header
             headers.set("Authorization", "Bearer " + token);
+            
+            // [!code ++]
+            // --- FIX: Manually inject Gateway headers for internal communication ---
+            // Since we bypass Traefik for this internal call, we must supply 
+            // the headers that the Device Service's HeaderAuthBridgeFilter expects.
+            headers.set("X-User", "admin");
+            headers.set("X-Role", "ROLE_ADMIN");
+            // [!code --]
+
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
-            // We only need the IDs, but the API returns DeviceDTO objects.
-            // We map the response to a List of Maps to extract IDs.
             ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
