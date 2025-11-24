@@ -84,6 +84,7 @@ public class DeviceService {
             "DEVICE", 
             "CREATED", 
             savedDevice.getDeviceName(), 
+            null,
             null
         );
         synchronizationService.publishEvent(event);
@@ -106,6 +107,7 @@ public class DeviceService {
             "DEVICE", 
             "UPDATED", 
             updatedDevice.getDeviceName(), 
+            null,
             null
         );
         synchronizationService.publishEvent(event);
@@ -128,6 +130,7 @@ public class DeviceService {
             "DEVICE", 
             "DELETED", 
             null, 
+            null,
             null
         );
         synchronizationService.publishEvent(event);

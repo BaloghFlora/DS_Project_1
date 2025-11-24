@@ -53,13 +53,14 @@ public class UserSyncConsumer {
             switch (event.getAction()) {
                 case "CREATED":
                 case "UPDATED":
-                    // Use the incoming ID and set the username to the email for local storage.
-                    // This aligns with the client-side logic which treats email as username.
-                    User userToSync = new User(event.getEmail());
-                    userToSync.setId(event.getId()); 
-                    
-                    userRepository.save(userToSync); // Performs INSERT or UPDATE by ID
-                    LOGGER.info("Synced/Updated User in device-service: ID {} | Email {}", event.getId(), event.getEmail());
+                    User userToSync = userRepository.findById(event.getId())
+                    .orElse(new User());
+    
+                    userToSync.setId(event.getId());
+                    userToSync.setUsername(event.getEmail()); // Update details
+    
+                    userRepository.save(userToSync);
+                    LOGGER.info("Synced/Updated User...");
                     break;
                 case "DELETED":
                     userRepository.deleteById(event.getId());

@@ -207,19 +207,14 @@ services:
     depends_on:
       rabbitmq:
         condition: service_started
-      device-service: 
-        condition: service_started
-      auth-service: # Ensure auth is started for token retrieval
-        condition: service_started
+      # Remove device-service and auth-service dependencies if you wish
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: guest
       SPRING_RABBITMQ_PASSWORD: guest
       APP_QUEUE_NAME: sensor.data.queue
-      # Internal Docker Service URLs for REST communication
-      AUTH_SERVICE_URL: http://auth-service:8081 
-      DEVICE_SERVICE_URL: http://device_api_service:8080
+      # You can remove AUTH_SERVICE_URL and DEVICE_SERVICE_URL
     networks:
       - app-network
 

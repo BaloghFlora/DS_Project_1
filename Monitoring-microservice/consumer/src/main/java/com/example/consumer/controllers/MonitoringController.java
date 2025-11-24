@@ -14,7 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/monitoring")
+@RequestMapping("/monitoring")
 public class MonitoringController {
 
     private final MonitoringService monitoringService;

@@ -22,7 +22,11 @@ const NavigationBar = () => {
                 </NavbarBrand>
                 <Nav className="mr-auto" navbar>
                     {user && (
-                        <NavLink tag={Link} to="/devices" style={{ color: 'white' }}>Devices</NavLink>
+                        <>
+                            <NavLink tag={Link} to="/devices" style={{ color: 'white' }}>Devices</NavLink>
+                            {/* Add Monitoring Link */}
+                            <NavLink tag={Link} to="/monitoring" style={{ color: 'white' }}>My Energy</NavLink>
+                        </>
                     )}
                     {isAdmin && (
                         <NavLink tag={Link} to="/users" style={{ color: 'white' }}>Users</NavLink>

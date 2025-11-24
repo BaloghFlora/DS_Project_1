@@ -12,21 +12,30 @@ public class SynchronizationEventDTO implements Serializable {
     private String entityType; // e.g., "USER", "DEVICE"
     private String action;     // e.g., "CREATED", "UPDATED", "DELETED"
     private String name;       
-    private String email;      
+    private String email;   
+    private String password;   
 
     // --- Constructors ---
     
     public SynchronizationEventDTO() {}
 
-    public SynchronizationEventDTO(UUID id, String entityType, String action, String name, String email) {
+    public SynchronizationEventDTO(UUID id, String entityType, String action, String name, String email, String password) {
         this.id = id;
         this.entityType = entityType;
         this.action = action;
         this.name = name;
         this.email = email;
+        this.password = password;
     }
 
     // --- Getters and Setters ---
+
+    public String getPassword() {
+        return password;
+    }
+    public void setPassword(String password) {
+        this.password = password;
+    }
 
     public UUID getId() {
         return id;

@@ -5,15 +5,14 @@ import java.util.UUID;
 
 public class SynchronizationEventDTO implements Serializable {
     
-    // Serializable ID for compatibility
     private static final long serialVersionUID = 1L; 
 
     private UUID id;
-    private String entityType; // e.g., "USER", "DEVICE"
+    private String entityType; // e.g., "USER"
     private String action;     // e.g., "CREATED", "UPDATED", "DELETED"
     private String name;       
-    private String email;   
-    private String password;   
+    private String email;      
+    private String password;   // <--- Crucial addition for Auth Service sync
 
     // --- Constructors ---
     
@@ -29,13 +28,6 @@ public class SynchronizationEventDTO implements Serializable {
     }
 
     // --- Getters and Setters ---
-
-    public String getPassword() {
-        return password;
-    }
-    public void setPassword(String password) {
-        this.password = password;
-    }
 
     public UUID getId() {
         return id;
@@ -77,6 +69,14 @@ public class SynchronizationEventDTO implements Serializable {
         this.email = email;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
     @Override
     public String toString() {
         return "SynchronizationEventDTO{" +
@@ -85,6 +85,7 @@ public class SynchronizationEventDTO implements Serializable {
                 ", action='" + action + '\'' +
                 ", name='" + name + '\'' +
                 ", email='" + email + '\'' +
+                // Do not print password in logs for security
                 '}';
     }
 }

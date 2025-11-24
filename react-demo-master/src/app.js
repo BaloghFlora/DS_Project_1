@@ -1,7 +1,6 @@
 // src/app.js
 import React from 'react'
-// --- 1. REMOVE 'BrowserRouter as Router' from this import ---
-import { Route, Routes } from 'react-router-dom' 
+import { Route, Routes } from 'react-router-dom'
 import NavigationBar from './navigation-bar'
 import Home from './home/home';
 import ErrorPage from './commons/errorhandling/error-page';
@@ -10,13 +9,13 @@ import styles from './commons/styles/project-style.css';
 import LoginPage from './auth/LoginPage';
 import UserPage from './user/UserPage';
 import DevicePage from './device/DevicePage';
+import MonitoringPage from './monitoring/MonitoringPage'; // 1. Import
 import ProtectedRoute from './components/ProtectedRoute';
 
 class App extends React.Component {
     render() {
         return (
             <div className={styles.back}>
-                {/* --- 2. REMOVE <Router> TAGS FROM HERE --- */}
                 <NavigationBar />
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
@@ -38,10 +37,19 @@ class App extends React.Component {
                             </ProtectedRoute>
                         }
                     />
+                    {/* 2. Add Monitoring Route */}
+                    <Route 
+                        path="/monitoring"
+                        element={
+                            <ProtectedRoute>
+                                <MonitoringPage />
+                            </ProtectedRoute>
+                        }
+                    />
+
                     <Route path="/error" element={<ErrorPage />} />
                     <Route path="*" element={<ErrorPage />} />
                 </Routes>
-                {/* --- 2. REMOVE </Router> TAGS FROM HERE --- */}
             </div>
         )
     };

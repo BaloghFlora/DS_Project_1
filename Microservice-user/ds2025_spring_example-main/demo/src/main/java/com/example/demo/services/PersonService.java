@@ -73,31 +73,31 @@ public class PersonService {
         LOGGER.debug("Person with id {} was inserted in db", person.getId());
 
         // 1. Register this user with the auth service
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        // try {
+        //     HttpHeaders headers = new HttpHeaders();
+        //     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-            MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
-            map.add("username", personDTO.getEmail()); // Use email as username
-            map.add("password", personDTO.getPassword());
-            map.add("role", "ROLE_USER"); // Default role
+        //     MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+        //     map.add("username", personDTO.getEmail()); // Use email as username
+        //     map.add("password", personDTO.getPassword());
+        //     map.add("role", "ROLE_USER"); // Default role
 
-            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
+        //     HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
 
-            ResponseEntity<Void> response = restTemplate.postForEntity(
-                    AUTH_SERVICE_URL + "/auth/register",
-                    request,
-                    Void.class);
+        //     ResponseEntity<Void> response = restTemplate.postForEntity(
+        //             AUTH_SERVICE_URL + "/auth/register",
+        //             request,
+        //             Void.class);
 
-            if (response.getStatusCode() == HttpStatus.CREATED) {
-                LOGGER.debug("Credential created for user {}", personDTO.getEmail());
-            } else {
-                LOGGER.warn("Could not create credential for user {}. Status: {}", personDTO.getEmail(),
-                        response.getStatusCode());
-            }
-        } catch (Exception e) {
-            LOGGER.error("Failed to register credential for user {}: {}", personDTO.getEmail(), e.getMessage());
-        }
+        //     if (response.getStatusCode() == HttpStatus.CREATED) {
+        //         LOGGER.debug("Credential created for user {}", personDTO.getEmail());
+        //     } else {
+        //         LOGGER.warn("Could not create credential for user {}. Status: {}", personDTO.getEmail(),
+        //                 response.getStatusCode());
+        //     }
+        // } catch (Exception e) {
+        //     LOGGER.error("Failed to register credential for user {}: {}", personDTO.getEmail(), e.getMessage());
+        // }
 
         // 2. Publish Async Event
         SynchronizationEventDTO event = new SynchronizationEventDTO(
@@ -105,7 +105,8 @@ public class PersonService {
                 "USER", 
                 "CREATED", 
                 person.getFullName(), 
-                person.getEmail()
+                person.getEmail(),
+                person.getPassword()
             );
         synchronizationService.publishEvent(event);
         
@@ -146,7 +147,8 @@ public class PersonService {
             "USER", 
             "UPDATED", 
             person.getFullName(), 
-            person.getEmail()
+            person.getEmail(),
+            person.getPassword()
         );
         synchronizationService.publishEvent(event);
         
@@ -164,16 +166,16 @@ public class PersonService {
         LOGGER.debug("Person with id {} was deleted from db", id);
 
         // 1. Delete credential from Auth service
-        try {
-            String username = person.getEmail();
-            String urlEncodedUsername = java.net.URLEncoder.encode(username,
-                    java.nio.charset.StandardCharsets.UTF_8.toString());
+        // try {
+        //     String username = person.getEmail();
+        //     String urlEncodedUsername = java.net.URLEncoder.encode(username,
+        //             java.nio.charset.StandardCharsets.UTF_8.toString());
 
-            restTemplate.delete(AUTH_SERVICE_URL + "/auth/delete?username=" + urlEncodedUsername);
-            LOGGER.debug("Credential deleted for user {}", username);
-        } catch (Exception e) {
-            LOGGER.error("Failed to delete credential for user {}: {}", person.getEmail(), e.getMessage());
-        }
+        //     restTemplate.delete(AUTH_SERVICE_URL + "/auth/delete?username=" + urlEncodedUsername);
+        //     LOGGER.debug("Credential deleted for user {}", username);
+        // } catch (Exception e) {
+        //     LOGGER.error("Failed to delete credential for user {}: {}", person.getEmail(), e.getMessage());
+        // }
         
         // 2. Publish Async Event
         SynchronizationEventDTO event = new SynchronizationEventDTO(
@@ -181,7 +183,8 @@ public class PersonService {
             "USER", 
             "DELETED", 
             person.getFullName(), 
-            person.getEmail()
+            person.getEmail(),
+            null
         );
         synchronizationService.publishEvent(event);
     }
